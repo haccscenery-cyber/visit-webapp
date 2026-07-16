@@ -1,0 +1,6 @@
+{
+  "$schema": "https://unpkg.com/wrangler@latest/config-schema.json",
+  "name": "visit-webapp",
+  "pages_build_output_dir": ".",
+  "compatibility_date": "2026-07-16"
+}
