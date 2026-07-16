@@ -2,7 +2,7 @@ const LINE_PUSH_ENDPOINT = 'https://api.line.me/v2/bot/message/push';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-  const required = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'LINE_CHANNEL_ACCESS_TOKEN', 'LINE_GROUP_ID'];
+  const required = ['SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'SUPABASE_SECRET_KEY', 'LINE_CHANNEL_ACCESS_TOKEN', 'LINE_GROUP_ID'];
   const missing = required.filter((name) => !env[name]);
   if (missing.length) return json({ error: `Missing server configuration: ${missing.join(', ')}` }, 500);
 
@@ -66,7 +66,7 @@ export async function onRequestPost(context) {
 }
 
 async function getCurrentUser(env, token) {
-  const response = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, { headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` } });
+  const response = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, { headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${token}` } });
   if (!response.ok) throw new Error('Invalid or expired session');
   return response.json();
 }
@@ -75,8 +75,7 @@ async function rest(env, path, options = {}) {
   const response = await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, {
     method: options.method || 'GET',
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: env.SUPABASE_SECRET_KEY,
       'Content-Type': 'application/json',
       ...(options.prefer ? { Prefer: options.prefer } : {})
     },

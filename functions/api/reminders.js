@@ -1,7 +1,7 @@
 export async function onRequestPost(context) {
   const { request, env } = context;
   if (!env.CRON_SECRET || request.headers.get('x-cron-secret') !== env.CRON_SECRET) return json({ error: 'Unauthorized' }, 401);
-  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY || !env.LINE_CHANNEL_ACCESS_TOKEN || !env.LINE_GROUP_ID) return json({ error: 'Missing reminder configuration' }, 500);
+  if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY || !env.LINE_CHANNEL_ACCESS_TOKEN || !env.LINE_GROUP_ID) return json({ error: 'Missing reminder configuration' }, 500);
 
   const reportDate = bangkokIsoDate();
   try {
@@ -30,7 +30,7 @@ export async function onRequestPost(context) {
 }
 
 async function rest(env, path, options = {}) {
-  const response = await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, { method: options.method || 'GET', headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' }, ...(options.body ? { body: JSON.stringify(options.body) } : {}) });
+  const response = await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, { method: options.method || 'GET', headers: { apikey: env.SUPABASE_SECRET_KEY, 'Content-Type': 'application/json' }, ...(options.body ? { body: JSON.stringify(options.body) } : {}) });
   const contentType = response.headers.get('content-type') || '';
   const body = contentType.includes('application/json') ? await response.json() : await response.text();
   if (!response.ok) throw new Error(typeof body === 'string' ? body : body.message || 'Supabase request failed');

@@ -27,8 +27,8 @@ const labels = {
 };
 
 const config = window.APP_CONFIG || {};
-const hasSupabaseConfig = Boolean(config.supabaseUrl && config.supabaseAnonKey);
-const supabase = hasSupabaseConfig ? createClient(config.supabaseUrl, config.supabaseAnonKey) : null;
+const hasSupabaseConfig = Boolean(config.supabaseUrl && config.supabasePublishableKey);
+const supabase = hasSupabaseConfig ? createClient(config.supabaseUrl, config.supabasePublishableKey) : null;
 
 const state = {
   isDemo: !hasSupabaseConfig,
@@ -354,7 +354,7 @@ async function loadProfile() {
 async function signIn(event) {
   event.preventDefault();
   if (!hasSupabaseConfig) {
-    elements.loginMessage.textContent = 'ยังไม่ได้กำหนด Supabase URL และ Anon Key ใน assets/js/config.js';
+    elements.loginMessage.textContent = 'ยังไม่ได้กำหนด Supabase URL และ Publishable Key ใน assets/js/config.js';
     return;
   }
   elements.loginMessage.textContent = '';

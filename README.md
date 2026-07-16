@@ -25,7 +25,7 @@ wrangler.jsonc          การตั้งค่า Cloudflare Pages
 ## เริ่มใช้งานในเครื่อง
 
 1. คัดลอก `.dev.vars.example` เป็น `.dev.vars` และใส่ค่าทดสอบของ Supabase/LINE หากต้องการทดสอบ Function
-2. เปิด `assets/js/config.js` แล้วใส่ `supabaseUrl` และ `supabaseAnonKey` สำหรับให้หน้าเว็บเชื่อม Supabase
+2. เปิด `assets/js/config.js` แล้วใส่ `supabaseUrl` และ `supabasePublishableKey` สำหรับให้หน้าเว็บเชื่อม Supabase
 3. ติดตั้ง Wrangler หรือสั่ง `npx wrangler pages dev .`
 4. เปิด URL ที่ Wrangler แสดงในเบราว์เซอร์
 
@@ -47,9 +47,9 @@ where id = 'AUTH_USER_UUID';
 
 6. เปลี่ยน role ของผู้ใช้อื่นเป็น `accountant` หรือ `receptionist` ตามหน้าที่
 7. ใน `Authentication > URL Configuration` เพิ่ม URL ของ Cloudflare Pages เช่น `https://visit-webapp.pages.dev` และ URL สำหรับทดสอบในเครื่อง
-8. คัดลอก `Project URL` กับ `anon public key` จาก `Project Settings > API` ไปใส่ใน `assets/js/config.js`
+8. คัดลอก `Project URL` กับ `publishable key` จาก `Settings > API Keys` ไปใส่ใน `assets/js/config.js`
 
-`anon public key` ใช้ในหน้าเว็บได้ เพราะ schema เปิด Row Level Security และใช้ policy/RPC ควบคุมสิทธิ์แล้ว ห้ามนำ `service_role key` ไปใส่ใน `assets/js/config.js` หรือ commit ลง Git เด็ดขาด
+`publishable key` ใช้ในหน้าเว็บได้ เพราะ schema เปิด Row Level Security และใช้ policy/RPC ควบคุมสิทธิ์แล้ว ห้ามนำ `secret key` ไปใส่ใน `assets/js/config.js` หรือ commit ลง Git เด็ดขาด
 
 ## ตั้งค่า LINE
 
@@ -95,15 +95,15 @@ git push -u origin main
 | ชื่อ | ประเภท | ค่า |
 | --- | --- | --- |
 | `SUPABASE_URL` | Variable | Project URL ของ Supabase |
-| `SUPABASE_ANON_KEY` | Variable | anon public key ของ Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | Secret | service_role key ของ Supabase |
+| `SUPABASE_PUBLISHABLE_KEY` | Variable | publishable key ของ Supabase |
+| `SUPABASE_SECRET_KEY` | Secret | secret key ของ Supabase |
 | `LINE_CHANNEL_ACCESS_TOKEN` | Secret | LINE channel access token |
 | `LINE_CHANNEL_SECRET` | Secret | LINE channel secret |
 | `LINE_GROUP_ID` | Secret | Group ID จาก LINE webhook |
 | `CRON_SECRET` | Secret | ข้อความสุ่มยาว ๆ ที่ใช้ร่วมกับ Worker |
 
 5. กด `Save and Deploy` Cloudflare จะตรวจพบโฟลเดอร์ `functions/` และ publish API routes ให้โดยอัตโนมัติ
-6. เติม Supabase URL/anon key ใน `assets/js/config.js` แล้ว commit/push อีกครั้งหากยังไม่ได้ใส่ก่อน deploy
+6. เติม Supabase URL/publishable key ใน `assets/js/config.js` แล้ว commit/push อีกครั้งหากยังไม่ได้ใส่ก่อน deploy
 
 Cloudflare Pages Functions ใช้ `context.env` เพื่ออ่านตัวแปร และ secret ที่ตั้งเป็น encrypted secret จะไม่แสดงค่าใน dashboard หลังบันทึก
 
