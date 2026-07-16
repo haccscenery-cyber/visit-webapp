@@ -31,14 +31,13 @@ const hasSupabaseConfig = Boolean(config.supabaseUrl && config.supabasePublishab
 const supabase = hasSupabaseConfig ? createClient(config.supabaseUrl, config.supabasePublishableKey) : null;
 
 const state = {
-  isDemo: !hasSupabaseConfig,
   role: 'accountant',
-  user: { id: null, name: 'ผู้ใช้งานสาธิต', email: '' },
+  user: { id: null, name: 'ผู้ใช้งาน', email: '' },
   date: localIsoDate(),
   note: '',
   report: emptyReport(),
   history: [],
-  entries: seedEntries(),
+  entries: emptyEntries(),
   periodReports: [],
   currentView: 'dashboard'
 };
@@ -66,6 +65,7 @@ const elements = {
   reminderPanel: document.querySelector('#reminder-panel'),
   reminderTitle: document.querySelector('#reminder-title'),
   reminderDetail: document.querySelector('#reminder-detail'),
+  dashboardNote: document.querySelector('#dashboard-note'),
   historyList: document.querySelector('#history-list'),
   barChart: document.querySelector('#bar-chart'),
   comparisonSection: document.querySelector('#comparison-section'),
@@ -109,9 +109,8 @@ function emptyReport() {
   return { id: null, status: 'waiting_accounting', note: '', receptionSavedAt: null, accountingSavedAt: null, updatedAt: null, sentAt: null };
 }
 
-function seedEntries() {
-  const quantities = [120, 85, 210, 150, 95, 40, 0, 0, 320, 220, 45];
-  return Object.fromEntries(items.map((item, index) => [item.code, { quantity: quantities[index], updatedAt: index === 10 ? '08:30' : '09:15', updatedBy: item.owner === 'receptionist' ? 'แผนกต้อนรับ' : 'แผนกบัญชี' }]));
+function emptyEntries() {
+  return Object.fromEntries(items.map((item) => [item.code, { quantity: 0, updatedAt: '', updatedBy: '' }]));
 }
 
 function formatThaiDate(iso, withWeekday = false) {
@@ -129,9 +128,9 @@ function formatDateTime(value) {
   if (!value) return 'ยังไม่มีข้อมูล';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
-  return `${formatThaiDate(date.toISOString().slice(0, 10))} ${hh}:${mm} น.`;
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Bangkok', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(date);
+  const valueFor = (type) => parts.find((part) => part.type === type)?.value || '';
+  return `${valueFor('day')}/${valueFor('month')}/${Number(valueFor('year')) + 543} ${valueFor('hour')}:${valueFor('minute')} น.`;
 }
 
 function totals() {
@@ -202,6 +201,8 @@ function renderStatus() {
   elements.notificationCount.textContent = needsReminder ? '1' : '0';
   elements.reminderTitle.textContent = needsReminder ? `มีรายงาน ${formatThaiDate(state.date)} ที่ยังไม่ได้ส่ง` : 'ไม่มีรายงานค้างส่ง';
   elements.reminderDetail.textContent = needsReminder ? 'เจ้าหน้าที่บัญชีต้องตรวจสอบและกดส่งรายงานด้วยตนเอง' : '';
+  elements.dashboardNote.hidden = !state.report.note;
+  elements.dashboardNote.textContent = state.report.note ? `หมายเหตุ: ${state.report.note}` : '';
 }
 
 function renderEntries() {
@@ -235,17 +236,7 @@ function renderChart() {
 }
 
 function renderHistory() {
-  const fallback = state.isDemo && state.history.length === 0 ? [
-    { version: 1, sentAt: `${formatThaiDate(state.date)} 17:15 น.`, status: 'sent', sender: 'แผนกบัญชี' },
-    { version: 1, sentAt: `${formatThaiDate(previousDay(state.date))} 17:09 น.`, status: 'sent', sender: 'แผนกบัญชี' }
-  ] : state.history;
-  elements.historyList.innerHTML = fallback.length ? fallback.slice(0, 4).map((log) => `<div class="history-item"><div class="history-icon"><i data-lucide="message-circle"></i></div><div><strong>รายงานฉบับที่ ${log.version || 1}</strong><span>${escapeHtml(log.sentAt || formatDateTime(log.created_at))} โดย ${escapeHtml(log.sender || 'แผนกบัญชี')}</span></div><span class="badge ${statusClass(log.status || 'sent')}">${labels[log.status || 'sent']}</span></div>`).join('') : '<div class="history-item"><div><strong>ยังไม่มีประวัติการส่ง</strong><span>รายงานที่ส่งสำเร็จจะแสดงที่นี่</span></div></div>';
-}
-
-function previousDay(iso) {
-  const date = new Date(`${iso}T00:00:00`);
-  date.setDate(date.getDate() - 1);
-  return date.toISOString().slice(0, 10);
+  elements.historyList.innerHTML = state.history.length ? state.history.slice(0, 4).map((log) => `<div class="history-item"><div class="history-icon"><i data-lucide="message-circle"></i></div><div><strong>รายงานฉบับที่ ${log.version || 1}</strong><span>${escapeHtml(log.sentAt || formatDateTime(log.created_at))} โดย ${escapeHtml(log.sender || 'แผนกบัญชี')}</span></div><span class="badge ${statusClass(log.status || 'sent')}">${labels[log.status || 'sent']}</span></div>`).join('') : '<div class="history-item"><div><strong>ยังไม่มีประวัติการส่ง</strong><span>รายงานที่ส่งสำเร็จจะแสดงที่นี่</span></div></div>';
 }
 
 function shiftDate(iso, days) {
@@ -266,21 +257,6 @@ function reportRecord(report) {
   const farm = items.filter((item) => item.group === 'farm').reduce((sum, item) => sum + (quantities.get(item.code) || 0), 0);
   const resort = quantities.get('resort_guests') || 0;
   return { date: report.report_date, farm, resort, overall: farm + resort, status: report.status, hasData: true };
-}
-
-function currentDemoRecord() {
-  const sum = items.reduce((result, item) => {
-    result[item.group] += Number(state.entries[item.code]?.quantity || 0);
-    return result;
-  }, { farm: 0, resort: 0 });
-  return { date: state.date, farm: sum.farm, resort: sum.resort, overall: sum.farm + sum.resort, status: state.report.status, hasData: true };
-}
-
-function syncDemoPeriodReports() {
-  const record = currentDemoRecord();
-  state.periodReports = state.periodReports.filter((report) => report.date !== record.date);
-  state.periodReports.push(record);
-  state.periodReports.sort((left, right) => left.date.localeCompare(right.date));
 }
 
 function formatThaiMonth(year, month) {
@@ -375,28 +351,10 @@ async function saveEntry(event) {
     if (!Number.isInteger(quantity) || quantity < 0) return showToast('จำนวนคนต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป', 'error');
     updates[input.dataset.itemCode] = quantity;
   }
-  const wasSent = state.report.status === 'sent';
-  if (state.isDemo) {
-    Object.entries(updates).forEach(([code, quantity]) => {
-      state.entries[code] = { quantity, updatedAt: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }), updatedBy: state.role === 'receptionist' ? 'แผนกต้อนรับ' : 'แผนกบัญชี' };
-    });
-    state.note = elements.reportNote.value.trim();
-    state.report.note = state.note;
-    state.report.updatedAt = new Date().toISOString();
-    if (state.role === 'receptionist') {
-      state.report.receptionSavedAt = state.report.updatedAt;
-      state.report.status = isAccountingSaved() ? 'pending_send' : 'waiting_accounting';
-    } else {
-      state.report.accountingSavedAt = state.report.updatedAt;
-      state.report.status = wasSent ? 'revised_pending_resend' : 'pending_send';
-    }
-    syncDemoPeriodReports();
-  } else {
-    const payload = Object.fromEntries(Object.entries(updates).map(([code, quantity]) => [code, quantity]));
-    const { error } = await supabase.rpc('save_daily_report', { p_report_date: state.date, p_entries: payload, p_note: elements.reportNote.value.trim() || null });
-    if (error) return showToast(error.message, 'error');
-    await loadReport();
-  }
+  const payload = Object.fromEntries(Object.entries(updates).map(([code, quantity]) => [code, quantity]));
+  const { error } = await supabase.rpc('save_daily_report', { p_report_date: state.date, p_entries: payload, p_note: elements.reportNote.value.trim() || null });
+  if (error) return showToast(error.message, 'error');
+  await loadReport();
   elements.entryModal.close();
   render();
   showToast('บันทึกข้อมูลเรียบร้อยแล้ว', 'success');
@@ -409,7 +367,7 @@ function openLineModal() {
   const version = state.history.length + 1;
   const isRevision = state.report.status === 'revised_pending_resend';
   elements.linePreview.innerHTML = `<div class="line-card-header"><strong>${isRevision ? `รายงานฉบับแก้ไขครั้งที่ ${version}` : `รายงานฉบับที่ ${version}`}</strong><span>ยอดคนเข้าชมฟาร์มและลูกค้าเข้าพัก ประจำวันที่ ${formatThaiDate(state.date)}</span></div><div class="line-card-totals"><div><span>ยอดเข้าชมฟาร์ม</span><b>${sum.farm.toLocaleString('th-TH')} คน</b></div><div><span>ลูกค้าเข้าพัก</span><b>${sum.resort.toLocaleString('th-TH')} คน</b></div><div><span>ยอดสะสมประจำเดือน</span><b>${sum.month.toLocaleString('th-TH')} คน</b></div><div><span>ยอดรวมวันนี้</span><strong>${sum.overall.toLocaleString('th-TH')} คน</strong></div></div>`;
-  elements.lineSendNote.textContent = state.isDemo ? 'โหมดสาธิต: ระบบจะจำลองการส่งและบันทึกประวัติ' : 'รายงานจะส่งเข้ากลุ่ม LINE ที่ผู้ดูแลระบบตั้งค่าไว้';
+  elements.lineSendNote.textContent = 'รายงานจะส่งเข้ากลุ่ม LINE ที่ผู้ดูแลระบบตั้งค่าไว้';
   elements.lineModal.showModal();
 }
 
@@ -419,18 +377,11 @@ async function sendLineReport() {
   button.innerHTML = '<i data-lucide="loader-circle"></i>กำลังส่ง';
   window.lucide?.createIcons();
   try {
-    if (state.isDemo) {
-      state.report.status = 'sent';
-      state.report.sentAt = new Date().toISOString();
-      state.report.updatedAt = state.report.sentAt;
-      state.history.unshift({ version: state.history.length + 1, status: 'sent', sender: state.user.name, sentAt: formatDateTime(state.report.sentAt) });
-    } else {
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch('/api/line-send', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` }, body: JSON.stringify({ report_date: state.date }) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'ไม่สามารถส่ง LINE ได้');
-      await loadReport();
-    }
+    const { data: { session } } = await supabase.auth.getSession();
+    const response = await fetch('/api/line-send', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` }, body: JSON.stringify({ report_date: state.date }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'ไม่สามารถส่ง LINE ได้');
+    await loadReport();
     elements.lineModal.close();
     render();
     showToast('ส่งรายงานเข้ากลุ่ม LINE เรียบร้อยแล้ว', 'success');
@@ -444,7 +395,6 @@ async function sendLineReport() {
 }
 
 async function loadReport() {
-  if (state.isDemo) return;
   const { data: reports, error } = await supabase.from('daily_reports').select('*').eq('report_date', state.date).limit(1);
   if (error) return showToast(error.message, 'error');
   const report = reports?.[0];
@@ -467,7 +417,6 @@ async function loadReport() {
 }
 
 async function loadPeriodReports() {
-  if (state.isDemo) return;
   const year = state.date.slice(0, 4);
   const { data, error } = await supabase
     .from('daily_reports')
@@ -490,7 +439,6 @@ async function loadProfile() {
     showToast('ไม่พบข้อมูลสิทธิ์ผู้ใช้งาน กรุณาให้ผู้ดูแลระบบสร้าง profile', 'error');
     return false;
   }
-  state.isDemo = false;
   state.user = { id: profile.id, name: profile.display_name || session.user.email, email: session.user.email };
   state.role = profile.role;
   await loadReport();
@@ -509,44 +457,24 @@ async function signIn(event) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) { elements.loginMessage.textContent = error.message; return; }
   if (await loadProfile()) {
+    document.body.classList.remove('auth-pending');
     elements.loginModal.close();
     render();
   }
 }
 
 async function signOut() {
-  if (!state.isDemo) await supabase.auth.signOut();
-  state.isDemo = !hasSupabaseConfig;
+  await supabase.auth.signOut();
   state.role = 'accountant';
-  state.user = { id: null, name: 'ผู้ใช้งานสาธิต', email: '' };
+  state.user = { id: null, name: 'ผู้ใช้งาน', email: '' };
   state.report = emptyReport();
-  state.entries = seedEntries();
+  state.entries = emptyEntries();
   state.history = [];
   state.periodReports = [];
-  render();
   elements.loginForm.reset();
   elements.loginMessage.textContent = '';
+  document.body.classList.add('auth-pending');
   elements.loginModal.showModal();
-}
-
-function setDemoMode() {
-  state.isDemo = true;
-  state.role = 'accountant';
-  state.user = { id: null, name: 'ผู้ใช้งานสาธิต', email: '' };
-  state.report = { ...emptyReport(), status: 'pending_send', receptionSavedAt: new Date().toISOString(), accountingSavedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-  state.entries = seedEntries();
-  state.periodReports = [];
-  syncDemoPeriodReports();
-  elements.loginModal.close();
-  render();
-}
-
-function switchDemoRole() {
-  if (!state.isDemo) return showToast('บทบาทจริงกำหนดจาก Supabase', 'error');
-  const roles = ['receptionist', 'accountant', 'admin'];
-  state.role = roles[(roles.indexOf(state.role) + 1) % roles.length];
-  render();
-  showToast(`เปลี่ยนเป็น ${labels[state.role]} ในโหมดสาธิต`, 'success');
 }
 
 function downloadCsv() {
@@ -590,7 +518,7 @@ function escapeHtml(value) {
 }
 
 function bindEvents() {
-  elements.reportDate.addEventListener('change', async (event) => { state.date = event.target.value; if (!state.isDemo) await loadReport(); render(); });
+  elements.reportDate.addEventListener('change', async (event) => { state.date = event.target.value; if (state.user.id) await loadReport(); render(); });
   document.querySelector('#open-entry-button').addEventListener('click', openEntryModal);
   document.querySelector('#open-line-button').addEventListener('click', openLineModal);
   document.querySelector('#review-reminder-button').addEventListener('click', openLineModal);
@@ -602,24 +530,31 @@ function bindEvents() {
   document.querySelector('#send-line-button').addEventListener('click', sendLineReport);
   elements.entryForm.addEventListener('submit', saveEntry);
   elements.loginForm.addEventListener('submit', signIn);
-  document.querySelector('#demo-mode-button').addEventListener('click', setDemoMode);
   document.querySelector('#sign-out-button').addEventListener('click', signOut);
-  document.querySelector('#profile-button').addEventListener('click', switchDemoRole);
   document.querySelector('#mobile-menu-button').addEventListener('click', () => document.querySelector('.sidebar').classList.toggle('open'));
+  document.querySelector('.main-content').addEventListener('click', () => document.querySelector('.sidebar').classList.remove('open'));
   document.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', () => document.querySelector(`#${button.dataset.closeModal}`).close()));
-  document.querySelectorAll('.nav-item[data-view]').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
+  document.querySelectorAll('.nav-item[data-view]').forEach((button) => button.addEventListener('click', () => {
+    document.querySelector('.sidebar').classList.remove('open');
+    setView(button.dataset.view);
+  }));
 }
 
 async function init() {
+  document.body.classList.add('auth-pending');
   bindEvents();
   if (hasSupabaseConfig) {
     const authenticated = await loadProfile();
-    if (!authenticated) elements.loginModal.showModal();
+    if (authenticated) {
+      document.body.classList.remove('auth-pending');
+      render();
+      return;
+    }
+    elements.loginModal.showModal();
   } else {
-    state.report = { ...emptyReport(), status: 'pending_send', receptionSavedAt: new Date().toISOString(), accountingSavedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-    syncDemoPeriodReports();
+    elements.loginMessage.textContent = 'ระบบยังไม่ได้กำหนด Supabase URL และ Publishable Key';
+    elements.loginModal.showModal();
   }
-  render();
 }
 
 init();

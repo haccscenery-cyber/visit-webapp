@@ -8,3 +8,4 @@ await rm(output, { force: true, recursive: true });
 await mkdir(output, { recursive: true });
 await cp(resolve(root, "index.html"), resolve(output, "index.html"));
 await cp(resolve(root, "assets"), resolve(output, "assets"), { recursive: true });
+await cp(resolve(root, "screen.png"), resolve(output, "screen.png"));

@@ -24,7 +24,7 @@
         <div class="sidebar-user">
           <span class="avatar" id="user-avatar">ส</span>
           <div>
-            <strong id="sidebar-user-name">ผู้ใช้งานสาธิต</strong>
+            <strong id="sidebar-user-name">ผู้ใช้งาน</strong>
             <span id="sidebar-role">เจ้าหน้าที่บัญชี</span>
           </div>
         </div>
@@ -89,6 +89,7 @@
               <span><i data-lucide="calculator"></i>บัญชี: <b id="accounting-status">รอกรอก</b></span>
               <span><i data-lucide="clock-3"></i><b id="last-updated">ยังไม่มีข้อมูล</b></span>
             </div>
+            <p class="report-note" id="dashboard-note" hidden></p>
           </article>
           <div class="quick-actions" aria-label="คำสั่งด่วน">
             <button class="quick-action" id="export-csv-button" title="ส่งออก Excel"><i data-lucide="file-spreadsheet"></i><span>Excel</span></button>
@@ -181,7 +182,6 @@
         <label class="field"><span>รหัสผ่าน</span><input id="login-password" type="password" autocomplete="current-password" required /></label>
         <p class="form-message" id="login-message"></p>
         <button class="button primary full-width" type="submit">เข้าสู่ระบบ</button>
-        <button class="button text full-width" id="demo-mode-button" type="button">เปิดโหมดสาธิต</button>
       </form>
     </dialog>
 
