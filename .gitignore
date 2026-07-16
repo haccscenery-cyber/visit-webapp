@@ -6,5 +6,5 @@
 !.dev.vars.example
 .wrangler
 node_modules
+deploy-static
 .DS_Store
-

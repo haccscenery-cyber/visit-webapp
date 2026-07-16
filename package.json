@@ -1,0 +1,11 @@
+{
+  "name": "visit-webapp",
+  "private": true,
+  "scripts": {
+    "deploy:pages": "wrangler pages deploy . --project-name visit-webapp --branch main",
+    "deploy:reminders": "wrangler deploy --config worker/wrangler.jsonc"
+  },
+  "devDependencies": {
+    "wrangler": "^4.110.0"
+  }
+}
