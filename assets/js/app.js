@@ -563,7 +563,10 @@ function setView(view) {
   elements.pageTitle.textContent = title;
   elements.pageSubtitle.textContent = subtitle;
   const isComparison = ['daily', 'weekly', 'monthly', 'yearly'].includes(view);
-  document.querySelectorAll('[data-dashboard-only]').forEach((section) => { section.hidden = isComparison; });
+  document.querySelectorAll('[data-dashboard-only]').forEach((section) => {
+    section.hidden = isComparison;
+    section.style.display = isComparison ? 'none' : '';
+  });
   if (view === 'entry') openEntryModal();
   if (view === 'line') openLineModal();
   renderComparison();
