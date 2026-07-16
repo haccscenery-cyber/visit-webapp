@@ -169,6 +169,10 @@ td.number { font-weight: 500; text-align: right; }
 .modal-header h2 { font-size: 20px; }
 .modal-note { margin: 0 0 14px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .entry-form-list { display: grid; gap: 8px; margin-bottom: 14px; }
+.entry-form-group { display: grid; gap: 4px; }
+.entry-group-heading { display: grid; gap: 1px; padding: 10px 0 7px; border-bottom: 2px solid var(--border); }
+.entry-group-heading strong { color: var(--primary); font-size: 13px; }
+.entry-group-heading span { color: var(--muted); font-size: 11px; }
 .entry-field { display: grid; grid-template-columns: 1fr 124px; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee9e5; }
 .entry-field label { font-size: 13px; font-weight: 500; }
 .entry-field small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }

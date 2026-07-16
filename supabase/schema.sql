@@ -180,7 +180,7 @@ drop policy if exists "Accountants can view reminder history" on public.reminder
 create policy "Accountants can view reminder history" on public.reminder_logs for select to authenticated using (public.is_accountant_or_admin());
 
 -- Data changes are intentionally performed through this RPC. It verifies the caller's role
--- and prevents the reception desk from writing farm-ticket rows.
+-- and lets reception record both farm visitors and resort guests before accounting reviews the report.
 create or replace function public.save_daily_report(
   p_report_date date,
   p_entries jsonb,
@@ -198,7 +198,6 @@ declare
   v_previous_status public.report_status;
   v_item_code text;
   v_quantity integer;
-  v_owner public.app_role;
   v_status public.report_status;
 begin
   if v_user_id is null then
@@ -230,12 +229,9 @@ begin
     if v_quantity < 0 then
       raise exception 'Quantity for % cannot be negative', v_item_code;
     end if;
-    select entry_owner into v_owner from public.report_items where code = v_item_code;
+    perform 1 from public.report_items where code = v_item_code;
     if not found then
       raise exception 'Unknown report item: %', v_item_code;
-    end if;
-    if v_role = 'receptionist' and v_owner <> 'receptionist' then
-      raise exception 'Reception staff may only edit resort guest entries';
     end if;
     insert into public.report_entries (report_id, item_code, quantity, updated_by, updated_at)
     values (v_report.id, v_item_code, v_quantity, v_user_id, now())

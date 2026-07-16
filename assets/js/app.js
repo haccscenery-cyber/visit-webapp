@@ -147,7 +147,7 @@ function isAccountingSaved() { return items.filter((item) => item.group === 'far
 function roleCanEdit(item) {
   if (state.role === 'admin') return true;
   if (state.role === 'receptionist' && ['sent', 'revised_pending_resend'].includes(currentStatus())) return false;
-  return state.role === 'receptionist' ? item.owner === 'receptionist' : item.owner === 'accountant';
+  return ['receptionist', 'accountant'].includes(state.role);
 }
 function roleCanSend() { return state.role === 'accountant' || state.role === 'admin'; }
 function currentStatus() { return state.report.status || 'waiting_accounting'; }
@@ -350,11 +350,16 @@ function openEntryModal() {
   const editable = items.filter(roleCanEdit);
   if (editable.length === 0) return showToast('บทบาทนี้ไม่มีสิทธิ์แก้ไขข้อมูล', 'error');
   elements.entryRoleNote.textContent = state.role === 'receptionist'
-    ? 'แผนกต้อนรับบันทึกได้เฉพาะรายการ “ลูกค้าเข้าพัก” หลังบันทึก ระบบจะรอให้แผนกบัญชีกรอกข้อมูลเพิ่มเติม'
+    ? 'แผนกต้อนรับบันทึกได้ทั้งยอดเข้าชมฟาร์มและลูกค้าบ้านพัก หลังบันทึก ระบบจะรอให้แผนกบัญชีตรวจสอบ ยืนยัน และส่งรายงาน'
     : 'ตรวจสอบและกรอกจำนวนลูกค้า รายการที่มีข้อมูลส่งแล้วถูกแก้ไขจะเปลี่ยนเป็นสถานะรอส่งฉบับแก้ไข';
-  elements.entryFormList.innerHTML = editable.map((item) => {
-    const quantity = Number(state.entries[item.code]?.quantity || 0);
-    return `<div class="entry-field"><div><label for="entry-${item.code}">${escapeHtml(item.name)}</label><small>${item.group === 'farm' ? 'ยอดเข้าชมฟาร์ม' : 'ยอดลูกค้าเข้าพัก'}</small></div><input id="entry-${item.code}" data-item-code="${item.code}" type="number" min="0" step="1" inputmode="numeric" value="${quantity}" required /></div>`;
+  const groupMeta = { farm: ['ยอดเข้าชมฟาร์ม', 'รายการบัตรและแพ็กเกจเข้าชม'], resort: ['ลูกค้าบ้านพัก', 'จำนวนผู้เข้าพักรีสอร์ท'] };
+  elements.entryFormList.innerHTML = ['farm', 'resort'].map((group) => {
+    const groupItems = editable.filter((item) => item.group === group);
+    if (!groupItems.length) return '';
+    return `<section class="entry-form-group"><div class="entry-group-heading"><strong>${groupMeta[group][0]}</strong><span>${groupMeta[group][1]}</span></div>${groupItems.map((item) => {
+      const quantity = Number(state.entries[item.code]?.quantity || 0);
+      return `<div class="entry-field"><div><label for="entry-${item.code}">${escapeHtml(item.name)}</label><small>${item.group === 'farm' ? 'ยอดเข้าชมฟาร์ม' : 'ยอดลูกค้าเข้าพัก'}</small></div><input id="entry-${item.code}" data-item-code="${item.code}" type="number" min="0" step="1" inputmode="numeric" value="${quantity}" required /></div>`;
+    }).join('')}</section>`;
   }).join('');
   elements.reportNote.value = state.note || state.report.note || '';
   elements.entryModal.showModal();
