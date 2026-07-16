@@ -39,6 +39,7 @@ const state = {
   report: emptyReport(),
   history: [],
   entries: seedEntries(),
+  periodReports: [],
   currentView: 'dashboard'
 };
 
@@ -47,15 +48,16 @@ const elements = {
   today: document.querySelector('#today-display'),
   pageTitle: document.querySelector('#page-title'),
   pageSubtitle: document.querySelector('#page-subtitle'),
-  entryTable: document.querySelector('#entry-table-body'),
-  entryCount: document.querySelector('#entry-count'),
+  farmEntryTable: document.querySelector('#farm-entry-table-body'),
+  resortEntryTable: document.querySelector('#resort-entry-table-body'),
+  farmEntryCount: document.querySelector('#farm-entry-count'),
+  resortEntryCount: document.querySelector('#resort-entry-count'),
   farmTotal: document.querySelector('#farm-total'),
   resortTotal: document.querySelector('#resort-total'),
   overallTotal: document.querySelector('#overall-total'),
   monthTotal: document.querySelector('#month-total'),
   tableFarmTotal: document.querySelector('#table-farm-total'),
   tableResortTotal: document.querySelector('#table-resort-total'),
-  tableOverallTotal: document.querySelector('#table-overall-total'),
   statusTitle: document.querySelector('#report-status-title'),
   statusBadge: document.querySelector('#status-badge'),
   receptionStatus: document.querySelector('#reception-status'),
@@ -66,6 +68,18 @@ const elements = {
   reminderDetail: document.querySelector('#reminder-detail'),
   historyList: document.querySelector('#history-list'),
   barChart: document.querySelector('#bar-chart'),
+  comparisonSection: document.querySelector('#comparison-section'),
+  comparisonLabel: document.querySelector('#comparison-label'),
+  comparisonTitle: document.querySelector('#comparison-title'),
+  comparisonPeriod: document.querySelector('#comparison-period'),
+  comparisonFarmTotal: document.querySelector('#comparison-farm-total'),
+  comparisonResortTotal: document.querySelector('#comparison-resort-total'),
+  comparisonOverallTotal: document.querySelector('#comparison-overall-total'),
+  comparisonCumulativeLabel: document.querySelector('#comparison-cumulative-label'),
+  comparisonCumulativeTotal: document.querySelector('#comparison-cumulative-total'),
+  comparisonRowLabel: document.querySelector('#comparison-row-label'),
+  comparisonRunningLabel: document.querySelector('#comparison-running-label'),
+  comparisonTable: document.querySelector('#comparison-table-body'),
   entryModal: document.querySelector('#entry-modal'),
   entryForm: document.querySelector('#entry-form'),
   entryFormList: document.querySelector('#entry-form-list'),
@@ -123,7 +137,9 @@ function formatDateTime(value) {
 function totals() {
   const farm = items.filter((item) => item.group === 'farm').reduce((sum, item) => sum + Number(state.entries[item.code]?.quantity || 0), 0);
   const resort = Number(state.entries.resort_guests?.quantity || 0);
-  return { farm, resort, overall: farm + resort, month: farm * 12 + resort * 12 };
+  const monthPrefix = state.date.slice(0, 7);
+  const month = state.periodReports.filter((report) => report.date.startsWith(monthPrefix)).reduce((sum, report) => sum + report.overall, 0);
+  return { farm, resort, overall: farm + resort, month };
 }
 
 function isReceptionSaved() { return Boolean(state.entries.resort_guests?.updatedAt); }
@@ -153,13 +169,14 @@ function render() {
   elements.monthTotal.textContent = sum.month.toLocaleString('th-TH');
   elements.tableFarmTotal.textContent = `${sum.farm.toLocaleString('th-TH')} คน`;
   elements.tableResortTotal.textContent = `${sum.resort.toLocaleString('th-TH')} คน`;
-  elements.tableOverallTotal.textContent = `${sum.overall.toLocaleString('th-TH')} คน`;
-  elements.entryCount.textContent = `${items.filter((item) => state.entries[item.code]?.updatedAt).length} จาก 11 รายการ`;
+  elements.farmEntryCount.textContent = `${items.filter((item) => item.group === 'farm' && state.entries[item.code]?.updatedAt).length} จาก 10 รายการ`;
+  elements.resortEntryCount.textContent = `${state.entries.resort_guests?.updatedAt ? 1 : 0} จาก 1 รายการ`;
   renderUser();
   renderStatus();
   renderEntries();
   renderChart();
   renderHistory();
+  renderComparison();
   window.lucide?.createIcons();
 }
 
@@ -188,7 +205,7 @@ function renderStatus() {
 }
 
 function renderEntries() {
-  elements.entryTable.innerHTML = items.map((item) => {
+  const row = (item) => {
     const entry = state.entries[item.code] || { quantity: 0 };
     const source = entry.updatedBy || '-';
     const isComplete = Boolean(entry.updatedAt);
@@ -199,14 +216,22 @@ function renderEntries() {
       <td class="entry-time">${escapeHtml(entry.updatedAt || '-')}</td>
       <td><span class="badge ${isComplete ? 'complete' : 'waiting'}">${isComplete ? 'บันทึกแล้ว' : 'รอข้อมูล'}</span></td>
     </tr>`;
-  }).join('');
+  };
+  elements.farmEntryTable.innerHTML = items.filter((item) => item.group === 'farm').map(row).join('');
+  elements.resortEntryTable.innerHTML = items.filter((item) => item.group === 'resort').map(row).join('');
 }
 
 function renderChart() {
-  const base = Math.max(totals().farm, 1);
-  const farmValues = [0.68, 0.77, 0.56, 0.84, 0.66, 0.94, 1];
-  const resortValues = [0.46, 0.57, 0.40, 0.63, 0.52, 0.59, 0.49];
-  elements.barChart.innerHTML = farmValues.map((value, index) => `<div class="bar-group"><span class="bar" style="height:${Math.round(value * 100)}%" title="ยอดฟาร์ม ${Math.round(base * value)} คน"></span><span class="bar resort" style="height:${Math.round(resortValues[index] * 100)}%" title="ยอดเข้าพัก ${Math.round(totals().resort * resortValues[index])} คน"></span><small>${index === 6 ? 'วันนี้' : `${index + 1} วันก่อน`}</small></div>`).join('');
+  const days = Array.from({ length: 7 }, (_, index) => shiftDate(state.date, index - 6));
+  const records = new Map(state.periodReports.map((report) => [report.date, report]));
+  const max = Math.max(...days.map((date) => records.get(date)?.overall || 0), 1);
+  elements.barChart.innerHTML = days.map((date) => {
+    const record = records.get(date);
+    const farm = record?.farm || 0;
+    const resort = record?.resort || 0;
+    const label = date === state.date ? 'วันนี้' : formatThaiDate(date);
+    return `<div class="bar-group"><span class="bar" style="height:${Math.round((farm / max) * 100)}%" title="ยอดฟาร์ม ${farm.toLocaleString('th-TH')} คน"></span><span class="bar resort" style="height:${Math.round((resort / max) * 100)}%" title="ลูกค้าบ้านพัก ${resort.toLocaleString('th-TH')} คน"></span><small>${label}</small></div>`;
+  }).join('');
 }
 
 function renderHistory() {
@@ -221,6 +246,104 @@ function previousDay(iso) {
   const date = new Date(`${iso}T00:00:00`);
   date.setDate(date.getDate() - 1);
   return date.toISOString().slice(0, 10);
+}
+
+function shiftDate(iso, days) {
+  const date = new Date(`${iso}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function mondayOfWeek(iso) {
+  const date = new Date(`${iso}T00:00:00`);
+  const weekday = date.getDay() || 7;
+  date.setDate(date.getDate() - weekday + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function reportRecord(report) {
+  const quantities = new Map((report.report_entries || []).map((entry) => [entry.item_code, Number(entry.quantity || 0)]));
+  const farm = items.filter((item) => item.group === 'farm').reduce((sum, item) => sum + (quantities.get(item.code) || 0), 0);
+  const resort = quantities.get('resort_guests') || 0;
+  return { date: report.report_date, farm, resort, overall: farm + resort, status: report.status, hasData: true };
+}
+
+function currentDemoRecord() {
+  const sum = items.reduce((result, item) => {
+    result[item.group] += Number(state.entries[item.code]?.quantity || 0);
+    return result;
+  }, { farm: 0, resort: 0 });
+  return { date: state.date, farm: sum.farm, resort: sum.resort, overall: sum.farm + sum.resort, status: state.report.status, hasData: true };
+}
+
+function syncDemoPeriodReports() {
+  const record = currentDemoRecord();
+  state.periodReports = state.periodReports.filter((report) => report.date !== record.date);
+  state.periodReports.push(record);
+  state.periodReports.sort((left, right) => left.date.localeCompare(right.date));
+}
+
+function formatThaiMonth(year, month) {
+  const names = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+  return `${names[month - 1]} ${Number(year) + 543}`;
+}
+
+function comparisonRows(view) {
+  const records = new Map(state.periodReports.map((report) => [report.date, report]));
+  if (view === 'daily') {
+    const record = records.get(state.date);
+    return record ? [{ ...record, label: formatThaiDate(record.date) }] : [];
+  }
+  if (view === 'weekly') {
+    const monday = mondayOfWeek(state.date);
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = shiftDate(monday, index);
+      const record = records.get(date);
+      return record ? { ...record, label: formatThaiDate(date, true) } : { date, label: formatThaiDate(date, true), farm: 0, resort: 0, overall: 0, hasData: false };
+    });
+  }
+  if (view === 'monthly') {
+    const prefix = state.date.slice(0, 7);
+    return state.periodReports.filter((report) => report.date.startsWith(prefix)).map((report) => ({ ...report, label: formatThaiDate(report.date) }));
+  }
+  const year = state.date.slice(0, 4);
+  return Array.from({ length: 12 }, (_, index) => {
+    const month = String(index + 1).padStart(2, '0');
+    const monthlyRecords = state.periodReports.filter((report) => report.date.startsWith(`${year}-${month}`));
+    const totals = monthlyRecords.reduce((sum, report) => ({ farm: sum.farm + report.farm, resort: sum.resort + report.resort, overall: sum.overall + report.overall }), { farm: 0, resort: 0, overall: 0 });
+    return { ...totals, label: formatThaiMonth(year, index + 1), hasData: monthlyRecords.length > 0, count: monthlyRecords.length };
+  });
+}
+
+function renderComparison() {
+  const view = state.currentView;
+  const isComparison = ['daily', 'weekly', 'monthly', 'yearly'].includes(view);
+  elements.comparisonSection.hidden = !isComparison;
+  if (!isComparison) return;
+  const meta = {
+    daily: { label: 'รายวัน', title: 'เปรียบเทียบยอดประจำวันที่เลือก', period: formatThaiDate(state.date), row: 'วันที่', running: 'ยอดรวมวันนั้น' },
+    weekly: { label: 'รายสัปดาห์', title: 'เปรียบเทียบยอดวันจันทร์ถึงอาทิตย์', period: `${formatThaiDate(mondayOfWeek(state.date))} - ${formatThaiDate(shiftDate(mondayOfWeek(state.date), 6))}`, row: 'วัน', running: 'ยอดสะสมสัปดาห์' },
+    monthly: { label: 'รายเดือน', title: 'สรุปยอดสะสมจากบันทึกประจำวัน', period: formatThaiMonth(state.date.slice(0, 4), Number(state.date.slice(5, 7))), row: 'วันที่บันทึก', running: 'ยอดสะสมเดือน' },
+    yearly: { label: 'รายปี', title: 'เปรียบเทียบยอดสะสมรายเดือน', period: `ปี ${Number(state.date.slice(0, 4)) + 543}`, row: 'เดือน', running: 'ยอดสะสมปี' }
+  }[view];
+  const rows = comparisonRows(view);
+  const total = rows.reduce((sum, row) => ({ farm: sum.farm + row.farm, resort: sum.resort + row.resort, overall: sum.overall + row.overall }), { farm: 0, resort: 0, overall: 0 });
+  elements.comparisonLabel.textContent = meta.label;
+  elements.comparisonTitle.textContent = meta.title;
+  elements.comparisonPeriod.textContent = meta.period;
+  elements.comparisonFarmTotal.textContent = total.farm.toLocaleString('th-TH');
+  elements.comparisonResortTotal.textContent = total.resort.toLocaleString('th-TH');
+  elements.comparisonOverallTotal.textContent = total.overall.toLocaleString('th-TH');
+  elements.comparisonCumulativeLabel.textContent = meta.running;
+  elements.comparisonCumulativeTotal.textContent = total.overall.toLocaleString('th-TH');
+  elements.comparisonRowLabel.textContent = meta.row;
+  elements.comparisonRunningLabel.textContent = meta.running;
+  let running = 0;
+  elements.comparisonTable.innerHTML = rows.length ? rows.map((row) => {
+    running += row.overall;
+    const missing = row.hasData === false;
+    return `<tr><td>${escapeHtml(row.label)}${missing ? '<br><span class="muted">ยังไม่มีบันทึก</span>' : (view === 'yearly' ? `<br><span class="muted">${row.count} วันบันทึก</span>` : '')}</td><td class="number">${row.farm.toLocaleString('th-TH')}</td><td class="number">${row.resort.toLocaleString('th-TH')}</td><td class="number">${row.overall.toLocaleString('th-TH')}</td><td class="number">${running.toLocaleString('th-TH')}</td></tr>`;
+  }).join('') : '<tr><td colspan="5" class="muted">ยังไม่มีข้อมูลที่เจ้าหน้าที่บันทึกสำหรับช่วงเวลานี้</td></tr>';
 }
 
 function openEntryModal() {
@@ -262,6 +385,7 @@ async function saveEntry(event) {
       state.report.accountingSavedAt = state.report.updatedAt;
       state.report.status = wasSent ? 'revised_pending_resend' : 'pending_send';
     }
+    syncDemoPeriodReports();
   } else {
     const payload = Object.fromEntries(Object.entries(updates).map(([code, quantity]) => [code, quantity]));
     const { error } = await supabase.rpc('save_daily_report', { p_report_date: state.date, p_entries: payload, p_note: elements.reportNote.value.trim() || null });
@@ -326,6 +450,7 @@ async function loadReport() {
   state.entries = Object.fromEntries(items.map((item) => [item.code, { quantity: 0, updatedAt: '', updatedBy: '' }]));
   state.note = state.report.note;
   state.history = [];
+  await loadPeriodReports();
   if (!report) return;
   const { data: entries, error: entriesError } = await supabase.from('report_entries').select('item_code, quantity, updated_at, profiles!report_entries_updated_by_fkey(display_name)').eq('report_id', report.id);
   if (entriesError) return showToast(entriesError.message, 'error');
@@ -334,6 +459,22 @@ async function loadReport() {
   }
   const { data: logs } = await supabase.from('line_delivery_logs').select('status, created_at, report_versions(version_no, created_by)').eq('report_id', report.id).order('created_at', { ascending: false }).limit(4);
   state.history = (logs || []).map((log) => ({ version: log.report_versions?.version_no, status: log.status, sentAt: formatDateTime(log.created_at), sender: 'แผนกบัญชี' }));
+}
+
+async function loadPeriodReports() {
+  if (state.isDemo) return;
+  const year = state.date.slice(0, 4);
+  const { data, error } = await supabase
+    .from('daily_reports')
+    .select('report_date, status, report_entries(item_code, quantity)')
+    .gte('report_date', `${year}-01-01`)
+    .lte('report_date', `${year}-12-31`)
+    .order('report_date');
+  if (error) {
+    showToast(error.message, 'error');
+    return;
+  }
+  state.periodReports = (data || []).map(reportRecord);
 }
 
 async function loadProfile() {
@@ -376,6 +517,7 @@ async function signOut() {
   state.report = emptyReport();
   state.entries = seedEntries();
   state.history = [];
+  state.periodReports = [];
   render();
   elements.loginForm.reset();
   elements.loginMessage.textContent = '';
@@ -388,6 +530,8 @@ function setDemoMode() {
   state.user = { id: null, name: 'ผู้ใช้งานสาธิต', email: '' };
   state.report = { ...emptyReport(), status: 'pending_send', receptionSavedAt: new Date().toISOString(), accountingSavedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   state.entries = seedEntries();
+  state.periodReports = [];
+  syncDemoPeriodReports();
   elements.loginModal.close();
   render();
 }
@@ -418,9 +562,11 @@ function setView(view) {
   const [title, subtitle] = names[view] || names.dashboard;
   elements.pageTitle.textContent = title;
   elements.pageSubtitle.textContent = subtitle;
+  const isComparison = ['daily', 'weekly', 'monthly', 'yearly'].includes(view);
+  document.querySelectorAll('[data-dashboard-only]').forEach((section) => { section.hidden = isComparison; });
   if (view === 'entry') openEntryModal();
   if (view === 'line') openLineModal();
-  if (view !== 'dashboard' && view !== 'entry' && view !== 'line') showToast('โครงหน้าจอพร้อมแล้ว ส่วนรายงานเต็มจะใช้ข้อมูลจาก Supabase หลังเชื่อมต่อ', 'success');
+  renderComparison();
 }
 
 function showToast(message, type = 'success') {
@@ -444,6 +590,7 @@ function bindEvents() {
   document.querySelector('#export-pdf-button').addEventListener('click', () => window.print());
   document.querySelector('#open-history-button').addEventListener('click', () => document.querySelector('#history-section').scrollIntoView({ behavior: 'smooth' }));
   document.querySelector('#view-all-history-button').addEventListener('click', () => document.querySelector('#history-section').scrollIntoView({ behavior: 'smooth' }));
+  document.querySelector('#open-weekly-dashboard').addEventListener('click', () => setView('weekly'));
   document.querySelector('#send-line-button').addEventListener('click', sendLineReport);
   elements.entryForm.addEventListener('submit', saveEntry);
   elements.loginForm.addEventListener('submit', signIn);
@@ -462,6 +609,7 @@ async function init() {
     if (!authenticated) elements.loginModal.showModal();
   } else {
     state.report = { ...emptyReport(), status: 'pending_send', receptionSavedAt: new Date().toISOString(), accountingSavedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    syncDemoPeriodReports();
   }
   render();
 }

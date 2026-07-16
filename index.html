@@ -69,19 +69,19 @@
           </div>
         </section>
 
-        <section class="alert-panel" id="reminder-panel" aria-live="polite">
+        <section class="alert-panel" id="reminder-panel" data-dashboard-only aria-live="polite">
           <div><i data-lucide="triangle-alert"></i><div><strong id="reminder-title">มีรายงานที่ยังไม่ได้ส่ง</strong><span id="reminder-detail">ตรวจสอบรายงานก่อนถึงเวลาแจ้งเตือน</span></div></div>
           <button class="button text" id="review-reminder-button">ตรวจสอบรายงาน <i data-lucide="arrow-right"></i></button>
         </section>
 
-        <section class="stats-grid" aria-label="ยอดสรุป">
+        <section class="stats-grid" data-dashboard-only aria-label="ยอดสรุป">
           <article class="stat-card"><span>ยอดเข้าชมฟาร์มวันนี้</span><strong id="farm-total">0</strong><small>คน</small></article>
           <article class="stat-card"><span>ลูกค้าเข้าพักวันนี้</span><strong id="resort-total">0</strong><small>คน</small></article>
           <article class="stat-card emphasis"><span>ยอดรวมวันนี้</span><strong id="overall-total">0</strong><small>คน</small></article>
           <article class="stat-card"><span>ยอดสะสมประจำเดือน</span><strong id="month-total">0</strong><small>คน</small></article>
         </section>
 
-        <section class="status-row">
+        <section class="status-row" data-dashboard-only>
           <article class="report-status" id="report-status-card">
             <div class="status-heading"><div><span class="section-label">สถานะรายงาน</span><h2 id="report-status-title">รอข้อมูลบัญชี</h2></div><span class="badge waiting" id="status-badge">รอข้อมูลบัญชี</span></div>
             <div class="status-meta">
@@ -97,28 +97,58 @@
           </div>
         </section>
 
-        <section class="content-grid">
+        <section class="record-grid" data-dashboard-only>
           <article class="panel daily-panel">
-            <div class="panel-header"><div><span class="section-label">ข้อมูลประจำวัน</span><h2>ยอดลูกค้าแยกตามรายการ</h2></div><span class="muted" id="entry-count">0 จาก 11 รายการ</span></div>
+            <div class="panel-header"><div><span class="section-label">บันทึกประจำวัน</span><h2>ยอดเข้าชมฟาร์ม</h2></div><span class="muted" id="farm-entry-count">0 จาก 10 รายการ</span></div>
             <div class="table-wrap">
               <table>
                 <thead><tr><th>รายการ</th><th class="number">จำนวน</th><th>แผนกที่บันทึก</th><th>เวลาล่าสุด</th><th>สถานะ</th></tr></thead>
-                <tbody id="entry-table-body"></tbody>
+                <tbody id="farm-entry-table-body"></tbody>
               </table>
             </div>
-            <div class="table-totals"><div><span>ยอดเข้าชมฟาร์ม</span><strong id="table-farm-total">0 คน</strong></div><div><span>ลูกค้าเข้าพัก</span><strong id="table-resort-total">0 คน</strong></div><div class="grand-total"><span>ยอดรวมทั้งหมด</span><strong id="table-overall-total">0 คน</strong></div></div>
+            <div class="table-totals"><div class="grand-total"><span>รวมยอดเข้าชมฟาร์ม</span><strong id="table-farm-total">0 คน</strong></div></div>
           </article>
 
+          <article class="panel daily-panel resort-panel">
+            <div class="panel-header"><div><span class="section-label">บันทึกประจำวัน</span><h2>ลูกค้าบ้านพัก</h2></div><span class="muted" id="resort-entry-count">0 จาก 1 รายการ</span></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>รายการ</th><th class="number">จำนวน</th><th>แผนกที่บันทึก</th><th>เวลาล่าสุด</th><th>สถานะ</th></tr></thead>
+                <tbody id="resort-entry-table-body"></tbody>
+              </table>
+            </div>
+            <div class="table-totals"><div class="grand-total"><span>รวมลูกค้าบ้านพัก</span><strong id="table-resort-total">0 คน</strong></div></div>
+          </article>
+        </section>
+
+        <section class="content-grid" data-dashboard-only>
           <article class="panel trend-panel">
-            <div class="panel-header"><div><span class="section-label">แนวโน้มรายเดือน</span><h2>ยอดรวม 7 วันล่าสุด</h2></div><button class="icon-button" title="ดูแดชบอร์ดรายเดือน"><i data-lucide="arrow-up-right"></i></button></div>
+            <div class="panel-header"><div><span class="section-label">ข้อมูลที่เจ้าหน้าที่บันทึก</span><h2>ยอดรวม 7 วันล่าสุด</h2></div><button class="icon-button" id="open-weekly-dashboard" title="ดูแดชบอร์ดรายสัปดาห์"><i data-lucide="arrow-up-right"></i></button></div>
             <div class="bar-chart" id="bar-chart" aria-label="กราฟยอดลูกค้า 7 วันล่าสุด"></div>
             <div class="chart-legend"><span><i></i>ยอดเข้าชมฟาร์ม</span><span><i></i>ลูกค้าเข้าพัก</span></div>
           </article>
         </section>
 
-        <section class="panel history-panel" id="history-section">
+        <section class="panel history-panel" id="history-section" data-dashboard-only>
           <div class="panel-header"><div><span class="section-label">ประวัติการส่ง LINE</span><h2>รายการล่าสุด</h2></div><button class="button text" id="view-all-history-button">ดูทั้งหมด <i data-lucide="arrow-right"></i></button></div>
           <div class="history-list" id="history-list"></div>
+        </section>
+
+        <section class="panel comparison-panel" id="comparison-section" hidden>
+          <div class="panel-header"><div><span class="section-label" id="comparison-label">รายงานเปรียบเทียบ</span><h2 id="comparison-title">ข้อมูลที่เจ้าหน้าที่บันทึก</h2></div><span class="muted" id="comparison-period"></span></div>
+          <div class="period-summary" aria-label="ยอดรวมช่วงเวลา">
+            <div><span>ยอดเข้าชมฟาร์ม</span><strong id="comparison-farm-total">0</strong><small>คน</small></div>
+            <div><span>ลูกค้าบ้านพัก</span><strong id="comparison-resort-total">0</strong><small>คน</small></div>
+            <div><span>ยอดรวมช่วงเวลา</span><strong id="comparison-overall-total">0</strong><small>คน</small></div>
+            <div><span id="comparison-cumulative-label">ยอดสะสม</span><strong id="comparison-cumulative-total">0</strong><small>คน</small></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th id="comparison-row-label">วัน</th><th class="number">ยอดเข้าชมฟาร์ม</th><th class="number">ลูกค้าบ้านพัก</th><th class="number">ยอดรวม</th><th class="number" id="comparison-running-label">ยอดสะสม</th></tr></thead>
+              <tbody id="comparison-table-body"></tbody>
+            </table>
+          </div>
+          <p class="comparison-note">ตัวเลขทั้งหมดมาจากรายการบันทึกประจำวันของเจ้าหน้าที่ ไม่มีการสร้างยอดประมาณการ</p>
         </section>
       </main>
     </div>

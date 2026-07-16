@@ -108,7 +108,8 @@ h2 { margin-bottom: 0; font-size: 18px; line-height: 1.4; }
 .quick-action:hover { background: var(--surface-alt); color: var(--primary); }
 .quick-action svg { width: 21px; height: 21px; color: var(--primary); }
 
-.content-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(290px, .8fr); gap: 14px; margin-top: 14px; }
+.record-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(330px, .85fr); gap: 14px; margin-top: 14px; }
+.content-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-top: 14px; }
 .panel { overflow: hidden; }
 .panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 16px 18px 14px; border-bottom: 1px solid var(--border); }
 .panel-header h2 { font-size: 17px; }
@@ -129,6 +130,8 @@ td.number { font-weight: 500; text-align: right; }
 .table-totals strong { font-size: 15px; }
 .table-totals .grand-total { padding-left: 22px; border-left: 1px solid var(--border); }
 .table-totals .grand-total strong { color: var(--primary); font-size: 18px; }
+.resort-panel .table-totals { min-height: 67px; align-items: center; }
+.resort-panel .table-totals .grand-total { padding-left: 0; border-left: 0; }
 .trend-panel { display: flex; flex-direction: column; }
 .bar-chart { display: flex; height: 256px; align-items: end; justify-content: space-around; gap: 9px; padding: 22px 18px 12px; border-bottom: 1px solid var(--border); }
 .bar-group { display: grid; height: 100%; flex: 1; align-items: end; justify-items: center; grid-template-columns: 1fr 1fr; gap: 3px; }
@@ -149,6 +152,14 @@ td.number { font-weight: 500; text-align: right; }
 .history-item strong, .history-item span:not(.badge) { display: block; }
 .history-item strong { font-size: 12px; font-weight: 500; }
 .history-item span:not(.badge) { color: var(--muted); font-size: 11px; }
+
+.comparison-panel { margin-top: 14px; }
+.period-summary { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--border); }
+.period-summary > div { min-height: 108px; padding: 16px 18px; border-right: 1px solid var(--border); }
+.period-summary > div:last-child { border-right: 0; background: #faf7f4; }
+.period-summary span, .period-summary small { display: block; color: var(--muted); font-size: 11px; }
+.period-summary strong { display: inline-block; margin: 15px 5px 0 0; color: var(--primary); font-size: 25px; line-height: 1; }
+.comparison-note { margin: 0; padding: 12px 18px; color: var(--muted); font-size: 11px; }
 
 .modal { width: min(590px, calc(100% - 30px)); max-height: min(760px, calc(100vh - 30px)); padding: 0; border: 0; border-radius: 8px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
 .modal::backdrop { background: rgba(26, 21, 18, .46); }
@@ -183,7 +194,7 @@ td.number { font-weight: 500; text-align: right; }
 .toast.success { background: #3f6845; }
 .toast.error { background: #9a3228; }
 
-@media (max-width: 1100px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .content-grid { grid-template-columns: 1fr; } .trend-panel { min-height: 330px; } }
+@media (max-width: 1100px) { .stats-grid, .period-summary { grid-template-columns: repeat(2, 1fr); } .record-grid, .content-grid { grid-template-columns: 1fr; } .trend-panel { min-height: 330px; } .period-summary > div:nth-child(2) { border-right: 0; } .period-summary > div:nth-child(-n+2) { border-bottom: 1px solid var(--border); } }
 @media (max-width: 820px) {
   .app-shell { padding-left: 0; padding-bottom: 70px; }
   .sidebar { display: none; }
@@ -195,6 +206,7 @@ td.number { font-weight: 500; text-align: right; }
   .page-header { align-items: flex-start; flex-direction: column; padding-top: 25px; }
   .header-actions { justify-content: flex-start; }
   .status-row { flex-direction: column; }
+  .record-grid { grid-template-columns: 1fr; }
   .quick-actions { justify-content: stretch; }
   .quick-action { flex: 1; min-height: 58px; grid-template-columns: auto auto; }
 }
@@ -212,6 +224,8 @@ td.number { font-weight: 500; text-align: right; }
   .header-actions .button { flex: 1; padding-inline: 8px; }
   .table-totals { justify-content: space-between; gap: 12px; }
   .table-totals .grand-total { width: 100%; padding: 10px 0 0; border-top: 1px solid var(--border); border-left: 0; }
+  .period-summary { grid-template-columns: 1fr 1fr; }
+  .period-summary > div { min-height: 96px; padding: 13px; }
   .modal-actions { flex-direction: column-reverse; }
   .modal-actions .button { width: 100%; }
   .toast { right: 16px; bottom: 16px; }
