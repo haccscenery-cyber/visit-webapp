@@ -30,13 +30,9 @@
         </div>
 
         <nav class="nav-list">
-          <button class="nav-item active" data-view="dashboard"><i data-lucide="house"></i><span>หน้าหลัก</span></button>
+          <button class="nav-item active" data-view="dashboard"><i data-lucide="chart-no-axes-combined"></i><span>แดชบอร์ดวิเคราะห์</span></button>
           <button class="nav-item" data-view="entry"><i data-lucide="clipboard-pen-line"></i><span>บันทึกยอดประจำวัน</span></button>
           <button class="nav-item" data-view="history"><i data-lucide="history"></i><span>รายการย้อนหลัง</span></button>
-          <button class="nav-item" data-view="daily"><i data-lucide="calendar-days"></i><span>แดชบอร์ดรายวัน</span></button>
-          <button class="nav-item" data-view="weekly"><i data-lucide="calendar-range"></i><span>แดชบอร์ดรายสัปดาห์</span></button>
-          <button class="nav-item" data-view="monthly"><i data-lucide="chart-column-big"></i><span>แดชบอร์ดรายเดือน</span></button>
-          <button class="nav-item" data-view="yearly"><i data-lucide="chart-no-axes-combined"></i><span>เปรียบเทียบรายปี</span></button>
           <button class="nav-item" data-view="line"><i data-lucide="message-circle"></i><span>ส่งรายงาน LINE</span></button>
         </nav>
 
@@ -59,8 +55,8 @@
         <section class="page-header">
           <div>
             <p class="eyebrow">ภาพรวมการดำเนินงาน</p>
-            <h1 id="page-title">หน้าหลัก</h1>
-            <p id="page-subtitle">สรุปยอดลูกค้าประจำวัน</p>
+            <h1 id="page-title">แดชบอร์ดวิเคราะห์ยอดลูกค้า</h1>
+            <p id="page-subtitle">สลับดูรายวัน รายสัปดาห์ รายเดือน และรายปีได้ในหน้าเดียว</p>
           </div>
           <div class="header-actions">
             <label class="date-control"><i data-lucide="calendar"></i><input id="report-date" type="date" /></label>
@@ -69,19 +65,32 @@
           </div>
         </section>
 
-        <section class="alert-panel" id="reminder-panel" data-dashboard-only aria-live="polite">
+        <section class="dashboard-mode" data-dashboard-section aria-label="เลือกระยะเวลาวิเคราะห์">
+          <div>
+            <span class="section-label">มุมมองข้อมูล</span>
+            <p id="dashboard-mode-description">ยอดของวันที่เลือก พร้อมสถานะรายงานและรายการที่ต้องดำเนินการ</p>
+          </div>
+          <div class="period-tabs" role="tablist" aria-label="เลือกระยะเวลาของแดชบอร์ด">
+            <button class="period-tab active" type="button" data-period="daily" role="tab" aria-selected="true">วัน</button>
+            <button class="period-tab" type="button" data-period="weekly" role="tab" aria-selected="false">สัปดาห์</button>
+            <button class="period-tab" type="button" data-period="monthly" role="tab" aria-selected="false">เดือน</button>
+            <button class="period-tab" type="button" data-period="yearly" role="tab" aria-selected="false">ปี</button>
+          </div>
+        </section>
+
+        <section class="alert-panel" id="reminder-panel" data-dashboard-section aria-live="polite">
           <div><i data-lucide="triangle-alert"></i><div><strong id="reminder-title">มีรายงานที่ยังไม่ได้ส่ง</strong><span id="reminder-detail">ตรวจสอบรายงานก่อนถึงเวลาแจ้งเตือน</span></div></div>
           <button class="button text" id="review-reminder-button">ตรวจสอบรายงาน <i data-lucide="arrow-right"></i></button>
         </section>
 
-        <section class="stats-grid" data-dashboard-only aria-label="ยอดสรุป">
-          <article class="stat-card"><span>ยอดเข้าชมฟาร์มวันนี้</span><strong id="farm-total">0</strong><small>คน</small></article>
-          <article class="stat-card"><span>ลูกค้าเข้าพักวันนี้</span><strong id="resort-total">0</strong><small>คน</small></article>
-          <article class="stat-card emphasis"><span>ยอดรวมวันนี้</span><strong id="overall-total">0</strong><small>คน</small></article>
-          <article class="stat-card"><span>ยอดสะสมประจำเดือน</span><strong id="month-total">0</strong><small>คน</small></article>
+        <section class="stats-grid" data-dashboard-section aria-label="ยอดสรุป">
+          <article class="stat-card"><span id="farm-total-label">ยอดเข้าชมฟาร์มวันนี้</span><strong id="farm-total">0</strong><small>คน</small></article>
+          <article class="stat-card"><span id="resort-total-label">ลูกค้าเข้าพักวันนี้</span><strong id="resort-total">0</strong><small>คน</small></article>
+          <article class="stat-card emphasis"><span id="overall-total-label">ยอดรวมวันนี้</span><strong id="overall-total">0</strong><small>คน</small></article>
+          <article class="stat-card"><span id="month-total-label">ยอดสะสมประจำเดือน</span><strong id="month-total">0</strong><small>คน</small></article>
         </section>
 
-        <section class="status-row" data-dashboard-only>
+        <section class="status-row" data-dashboard-section>
           <article class="report-status" id="report-status-card">
             <div class="status-heading"><div><span class="section-label">สถานะรายงาน</span><h2 id="report-status-title">รอข้อมูลบัญชี</h2></div><span class="badge waiting" id="status-badge">รอข้อมูลบัญชี</span></div>
             <div class="status-meta">
@@ -92,13 +101,13 @@
             <p class="report-note" id="dashboard-note" hidden></p>
           </article>
           <div class="quick-actions" aria-label="คำสั่งด่วน">
-            <button class="quick-action" id="export-csv-button" title="ส่งออก Excel"><i data-lucide="file-spreadsheet"></i><span>Excel</span></button>
+            <button class="quick-action" id="export-excel-button" title="ส่งออก Excel ตามช่วงเวลาที่เลือก"><i data-lucide="file-spreadsheet"></i><span>Excel</span></button>
             <button class="quick-action" id="export-pdf-button" title="ส่งออก PDF"><i data-lucide="file-text"></i><span>PDF</span></button>
             <button class="quick-action" id="open-history-button" title="ประวัติการส่ง"><i data-lucide="history"></i><span>ประวัติ</span></button>
           </div>
         </section>
 
-        <section class="record-grid" data-dashboard-only>
+        <section class="record-grid" data-dashboard-section>
           <article class="panel daily-panel">
             <div class="panel-header"><div><span class="section-label">บันทึกประจำวัน</span><h2>ยอดเข้าชมฟาร์ม</h2></div><span class="muted" id="farm-entry-count">0 จาก 10 รายการ</span></div>
             <div class="table-wrap">
@@ -122,20 +131,33 @@
           </article>
         </section>
 
-        <section class="content-grid" data-dashboard-only>
+        <section class="content-grid" id="trend-section" data-dashboard-section>
           <article class="panel trend-panel">
-            <div class="panel-header"><div><span class="section-label">ข้อมูลที่เจ้าหน้าที่บันทึก</span><h2>ยอดรวม 7 วันล่าสุด</h2></div><button class="icon-button" id="open-weekly-dashboard" title="ดูแดชบอร์ดรายสัปดาห์"><i data-lucide="arrow-up-right"></i></button></div>
-            <div class="bar-chart" id="bar-chart" aria-label="กราฟยอดลูกค้า 7 วันล่าสุด"></div>
-            <div class="chart-legend"><span><i></i>ยอดเข้าชมฟาร์ม</span><span><i></i>ลูกค้าเข้าพัก</span></div>
+            <div class="panel-header"><div><span class="section-label">เปรียบเทียบยอดเข้าชม</span><h2 id="farm-trend-title">ยอดเข้าชมฟาร์ม</h2></div></div>
+            <div class="bar-chart single-series" id="farm-bar-chart" aria-label="กราฟยอดเข้าชมฟาร์มตามช่วงเวลาที่เลือก"></div>
+            <div class="chart-legend"><span class="legend-farm"><i></i>ยอดเข้าชมฟาร์ม</span></div>
+          </article>
+          <article class="panel trend-panel">
+            <div class="panel-header"><div><span class="section-label">เปรียบเทียบยอดเข้าพัก</span><h2 id="resort-trend-title">ลูกค้าเข้าพัก</h2></div></div>
+            <div class="bar-chart single-series resort-series" id="resort-bar-chart" aria-label="กราฟลูกค้าเข้าพักตามช่วงเวลาที่เลือก"></div>
+            <div class="chart-legend resort-legend"><span class="legend-resort"><i></i>ลูกค้าเข้าพัก</span></div>
           </article>
         </section>
 
-        <section class="panel history-panel" id="history-section" data-dashboard-only>
+        <section class="pipeline-grid" data-dashboard-section aria-label="Pipeline ข้อมูล">
+          <article class="panel pipeline-panel">
+            <div class="panel-header"><div><span class="section-label">Pipeline ข้อมูล</span><h2>สถานะข้อมูลสำหรับวางแผน</h2></div><span class="muted" id="pipeline-period"></span></div>
+            <div class="pipeline-flow" id="pipeline-flow"></div>
+            <p class="pipeline-insight" id="planning-insight"></p>
+          </article>
+        </section>
+
+        <section class="panel history-panel" id="history-section" data-dashboard-section>
           <div class="panel-header"><div><span class="section-label">ประวัติการส่ง LINE</span><h2>รายการล่าสุด</h2></div><button class="button text" id="view-all-history-button">ดูทั้งหมด <i data-lucide="arrow-right"></i></button></div>
           <div class="history-list" id="history-list"></div>
         </section>
 
-        <section class="panel comparison-panel" id="comparison-section" hidden>
+        <section class="panel comparison-panel" id="comparison-section" data-dashboard-section>
           <div class="panel-header"><div><span class="section-label" id="comparison-label">รายงานเปรียบเทียบ</span><h2 id="comparison-title">ข้อมูลที่เจ้าหน้าที่บันทึก</h2></div><span class="muted" id="comparison-period"></span></div>
           <div class="period-summary" aria-label="ยอดรวมช่วงเวลา">
             <div><span>ยอดเข้าชมฟาร์ม</span><strong id="comparison-farm-total">0</strong><small>คน</small></div>
@@ -151,6 +173,12 @@
           </div>
           <p class="comparison-note">ตัวเลขทั้งหมดมาจากรายการบันทึกประจำวันของเจ้าหน้าที่ ไม่มีการสร้างยอดประมาณการ</p>
         </section>
+
+        <section class="panel report-history-workspace" id="report-history-workspace" hidden>
+          <div class="panel-header"><div><span class="section-label">แก้ไขข้อมูลย้อนหลัง</span><h2>รายการรายงานในปีที่เลือก</h2></div><button class="button secondary" type="button" id="history-use-selected-date"><i data-lucide="calendar-check"></i>ใช้วันที่ที่เลือก</button></div>
+          <div class="history-toolbar"><label class="field"><span>ค้นหาวันที่หรือสถานะ</span><input id="history-search" type="search" placeholder="เช่น 01/07/2569 หรือ รอส่ง" /></label><p>เลือก “แก้ไข” เพื่อเปิดข้อมูลของวันนั้น การเปลี่ยนแปลงจะบันทึกประวัติและรายงานที่ส่งแล้วจะรอส่งฉบับแก้ไข</p></div>
+          <div class="table-wrap"><table><thead><tr><th>วันที่รายงาน</th><th>ยอดฟาร์ม</th><th>ลูกค้าบ้านพัก</th><th>ยอดรวม</th><th>สถานะ</th><th>อัปเดตล่าสุด</th><th></th></tr></thead><tbody id="report-history-table-body"></tbody></table></div>
+        </section>
       </main>
     </div>
 
@@ -161,6 +189,26 @@
         <div class="entry-form-list" id="entry-form-list"></div>
         <label class="field"><span>หมายเหตุ</span><textarea id="report-note" rows="2" placeholder="ระบุข้อมูลเพิ่มเติม (ถ้ามี)"></textarea></label>
         <div class="modal-actions"><button class="button secondary" type="button" data-close-modal="entry-modal">ยกเลิก</button><button class="button primary" type="submit"><i data-lucide="save"></i>บันทึกข้อมูล</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="excel-export-modal">
+      <form class="modal-content export-content" id="excel-export-form" method="dialog">
+        <div class="modal-header"><div><span class="section-label">กำหนดช่วงข้อมูล</span><h2>ส่งออกรายงาน Excel</h2></div><button class="icon-button" type="button" data-close-modal="excel-export-modal" title="ปิด"><i data-lucide="x"></i></button></div>
+        <p class="modal-note">เลือกช่วงเวลาและปีที่ต้องการ ระบบจะดึงข้อมูลของช่วงนั้นมาสร้างไฟล์ Excel</p>
+        <fieldset class="export-period-options">
+          <legend>รูปแบบรายงาน</legend>
+          <label><input type="radio" name="export-period" value="yearly" checked /><span><i data-lucide="calendar-range"></i><b>รายปี</b><small>สรุปแยก 12 เดือน</small></span></label>
+          <label><input type="radio" name="export-period" value="monthly" /><span><i data-lucide="calendar-days"></i><b>รายเดือน</b><small>รายละเอียดทุกวัน</small></span></label>
+          <label><input type="radio" name="export-period" value="weekly" /><span><i data-lucide="calendar-clock"></i><b>รายสัปดาห์</b><small>จันทร์–อาทิตย์</small></span></label>
+        </fieldset>
+        <div class="export-date-fields">
+          <label class="field"><span>เลือกปี (พ.ศ.)</span><select id="export-year" required></select></label>
+          <label class="field" id="export-month-field" hidden><span>เลือกเดือน</span><select id="export-month"></select></label>
+          <label class="field" id="export-week-field" hidden><span>เลือกวันที่ในสัปดาห์</span><input id="export-week-date" type="date" /></label>
+        </div>
+        <p class="export-selection-summary" id="export-selection-summary"></p>
+        <div class="modal-actions"><button class="button secondary" type="button" data-close-modal="excel-export-modal">ยกเลิก</button><button class="button primary" id="confirm-excel-export" type="submit"><i data-lucide="download"></i>สร้างไฟล์ Excel</button></div>
       </form>
     </dialog>
 
@@ -187,6 +235,7 @@
 
     <template id="history-item-template"><div class="history-item"><div class="history-icon"><i data-lucide="message-circle"></i></div><div><strong></strong><span></span></div><span class="badge"></span></div></template>
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script src="assets/js/config.js"></script>
     <script type="module" src="assets/js/app.js"></script>
   </body>
