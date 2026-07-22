@@ -163,6 +163,7 @@ async function rest(env, path, options = {}) {
 function createReportFlexMessage(payload) {
   const date = thaiDate(payload.report_date);
   const note = formatNote(payload.note);
+  const shareUrl = `https://line.me/R/share?text=${encodeURIComponent(createShareText(payload, date, note))}`;
   const details = payload.entries.map((entry) => detailRow(entry));
   const bodyContents = [
     { type: 'text', text: 'สรุปจำนวนลูกค้า', weight: 'bold', size: 'md', color: '#1F2937' },
@@ -205,11 +206,25 @@ function createReportFlexMessage(payload) {
         { type: 'text', text: `ฉบับที่ ${payload.version_no}`, size: 'xxs', color: '#BFD7F5', margin: 'md' }
       ] },
       body: { type: 'box', layout: 'vertical', paddingAll: '18px', contents: bodyContents },
-      footer: { type: 'box', layout: 'vertical', paddingAll: '12px', contents: [
+      footer: { type: 'box', layout: 'vertical', paddingAll: '12px', spacing: 'sm', contents: [
+        { type: 'button', style: 'primary', color: '#06C755', height: 'sm', action: { type: 'uri', label: 'แชร์รายงาน', uri: shareUrl } },
         { type: 'text', text: 'จัดทำจากระบบบันทึกยอดลูกค้า', size: 'xxs', color: '#9CA3AF', align: 'center' }
       ] }
     }
   };
+}
+
+function createShareText(payload, date, note) {
+  const rows = payload.entries
+    .filter((entry) => Number(entry.quantity) > 0)
+    .map((entry) => `• ${entry.display_name}: ${Number(entry.quantity).toLocaleString('th-TH')} คน`);
+  return [
+    `รายงานยอดลูกค้า ประจำวันที่ ${date}`,
+    `เข้าชมฟาร์ม ${payload.totals.farm.toLocaleString('th-TH')} คน | เข้าพัก ${payload.totals.resort.toLocaleString('th-TH')} คน`,
+    `รวมทั้งหมด ${payload.totals.overall.toLocaleString('th-TH')} คน`,
+    ...rows,
+    ...(note ? [`หมายเหตุ: ${note}`] : [])
+  ].join('\n');
 }
 
 function cumulativeTotals(reports, reportDate, reportItems) {
