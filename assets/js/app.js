@@ -492,21 +492,61 @@ async function sendLineReport() {
   button.innerHTML = '<i data-lucide="loader-circle"></i>กำลังส่ง';
   window.lucide?.createIcons();
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    const response = await fetch('/api/line-send', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` }, body: JSON.stringify({ report_date: state.date }) });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'ไม่สามารถส่ง LINE ได้');
+    let accessToken = await freshAccessToken();
+    let { response, result } = await requestLineSend(accessToken);
+    if (response.status === 401) {
+      accessToken = await freshAccessToken(true);
+      ({ response, result } = await requestLineSend(accessToken));
+    }
+    if (!response.ok) {
+      const error = new Error(result.error || 'ไม่สามารถส่ง LINE ได้');
+      error.status = response.status;
+      throw error;
+    }
     await loadReport();
     elements.lineModal.close();
     render();
     showToast(`ส่งรายงานเข้า LINE เรียบร้อยแล้ว ${Number(result.group_count || 1).toLocaleString('th-TH')} กลุ่ม`, 'success');
   } catch (error) {
-    showToast(error.message || 'การส่งรายงานไม่สำเร็จ', 'error');
+    if (error.code === 'SESSION_EXPIRED' || error.status === 401) {
+      elements.lineModal.close();
+      showToast('เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง', 'error');
+      await signOut();
+    } else {
+      showToast(error.message || 'การส่งรายงานไม่สำเร็จ', 'error');
+    }
   } finally {
     button.disabled = false;
     button.innerHTML = '<i data-lucide="send"></i>ส่งเข้ากลุ่ม LINE';
     window.lucide?.createIcons();
   }
+}
+
+async function freshAccessToken(forceRefresh = false) {
+  let { data, error } = await supabase.auth.getSession();
+  let session = data?.session;
+  const expiresSoon = !session?.expires_at || (session.expires_at * 1000) - Date.now() < 120000;
+  if (!error && session && (forceRefresh || expiresSoon)) {
+    ({ data, error } = await supabase.auth.refreshSession(session));
+    session = data?.session;
+  }
+  if (error || !session?.access_token) {
+    const sessionError = new Error(error?.message || 'Session expired');
+    sessionError.code = 'SESSION_EXPIRED';
+    throw sessionError;
+  }
+  return session.access_token;
+}
+
+async function requestLineSend(accessToken) {
+  const response = await fetch('/api/line-send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ report_date: state.date })
+  });
+  const contentType = response.headers.get('content-type') || '';
+  const result = contentType.includes('application/json') ? await response.json() : { error: await response.text() };
+  return { response, result };
 }
 
 async function loadReport() {
