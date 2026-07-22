@@ -160,7 +160,7 @@ async function rest(env, path, options = {}) {
   return responseBody;
 }
 
-function createReportFlexMessage(payload) {
+export function createReportFlexMessage(payload) {
   const date = thaiDate(payload.report_date);
   const note = formatNote(payload.note);
   const shareUrl = `https://line.me/R/share?text=${encodeURIComponent(createShareText(payload, date, note))}`;
@@ -227,7 +227,7 @@ function createShareText(payload, date, note) {
   ].join('\n');
 }
 
-function cumulativeTotals(reports, reportDate, reportItems) {
+export function cumulativeTotals(reports, reportDate, reportItems) {
   const monthPrefix = reportDate.slice(0, 7);
   const groupByCode = new Map((reportItems || []).map((item) => [item.code, item.item_group]));
   return (reports || []).reduce((totals, report) => {
