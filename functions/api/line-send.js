@@ -26,6 +26,12 @@ export async function onRequestPost(context) {
     if (!report) return json({ error: 'No daily report exists for this date' }, 404);
     if (!report.reception_saved_at || !report.accounting_saved_at) return json({ error: 'Both reception and accounting data must be saved before sending' }, 422);
 
+    // Do not resend this daily report to a group that already accepted it.
+    const sentLogs = await rest(env, `line_delivery_logs?report_id=eq.${report.id}&status=eq.sent&select=destination`, { method: 'GET' });
+    const sentDestinations = new Set(sentLogs.map((log) => log.destination));
+    const pendingGroupIds = groupIds.filter((groupId) => !sentDestinations.has(destinationLabel(groupId)));
+    if (!pendingGroupIds.length) return json({ ok: true, already_sent: true, group_count: groupIds.length });
+
     await rest(env, `daily_reports?id=eq.${report.id}`, { method: 'PATCH', body: { status: 'sending', updated_by: user.id } });
     const yearStart = `${report.report_date.slice(0, 4)}-01-01`;
     const [entries, reportItems, existingVersions, periodReports] = await Promise.all([
@@ -57,7 +63,7 @@ export async function onRequestPost(context) {
     const versions = await rest(env, 'report_versions', { method: 'POST', body: { report_id: report.id, version_no: versionNo, payload, created_by: user.id }, prefer: 'return=representation' });
     const version = versions[0];
 
-    const deliveries = await pushToGroups(env.LINE_CHANNEL_ACCESS_TOKEN, groupIds, createReportFlexMessage(payload));
+    const deliveries = await pushToGroups(env.LINE_CHANNEL_ACCESS_TOKEN, pendingGroupIds, createReportFlexMessage(payload));
     const failedDeliveries = deliveries.filter((delivery) => delivery.status === 'failed');
     const reportStatus = failedDeliveries.length ? 'failed' : 'sent';
     const reportUpdate = reportStatus === 'sent'
@@ -82,10 +88,14 @@ export async function onRequestPost(context) {
 
     if (failedDeliveries.length) {
       const sentCount = deliveries.length - failedDeliveries.length;
+      const quotaExceeded = failedDeliveries.every((delivery) => /monthly limit/i.test(delivery.errorMessage || ''));
       return json({
-        error: `ส่ง LINE สำเร็จ ${sentCount} จาก ${deliveries.length} กลุ่ม และมี ${failedDeliveries.length} กลุ่มส่งไม่สำเร็จ กรุณาตรวจสอบประวัติการส่ง`,
+        error: quotaExceeded
+          ? `โควตาส่งข้อความ LINE รายเดือนหมดแล้ว ส่งสำเร็จ ${sentCount} กลุ่ม เหลือ ${failedDeliveries.length} กลุ่ม กรุณาเพิ่มโควตาใน LINE Official Account แล้วกดส่งอีกครั้ง ระบบจะไม่ส่งซ้ำกลุ่มที่สำเร็จแล้ว`
+          : `ส่ง LINE สำเร็จ ${sentCount} จาก ${deliveries.length} กลุ่ม และมี ${failedDeliveries.length} กลุ่มส่งไม่สำเร็จ กรุณาตรวจสอบประวัติการส่ง`,
         sent_groups: sentCount,
-        failed_groups: failedDeliveries.length
+        failed_groups: failedDeliveries.length,
+        code: quotaExceeded ? 'LINE_MONTHLY_LIMIT_REACHED' : 'LINE_DELIVERY_FAILED'
       }, 502);
     }
 
