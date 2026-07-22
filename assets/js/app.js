@@ -713,9 +713,11 @@ async function downloadExcel() {
     workbook.modified = new Date();
     workbook.calcProperties.fullCalcOnLoad = true;
 
-    buildSummaryWorksheet(workbook, summaryRows, meta);
-    buildDailyWorksheet(workbook, dailyRecords, meta);
-    buildDetailWorksheet(workbook, dailyRecords.filter((report) => report.hasData), meta);
+    buildSummaryWorksheet(workbook, summaryRows, meta, period);
+    if (period !== 'yearly') {
+      buildDailyWorksheet(workbook, dailyRecords, meta);
+      buildDetailWorksheet(workbook, dailyRecords.filter((report) => report.hasData), meta);
+    }
 
     const buffer = await workbook.xlsx.writeBuffer();
     const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
@@ -733,13 +735,14 @@ async function downloadExcel() {
   }
 }
 
-function buildSummaryWorksheet(workbook, rows, meta) {
-  const sheet = workbook.addWorksheet('สรุป', { views: [{ state: 'frozen', ySplit: 8, showGridLines: false }] });
+function buildSummaryWorksheet(workbook, rows, meta, period) {
+  const isYearly = period === 'yearly';
+  const sheet = workbook.addWorksheet(isYearly ? 'รายเดือน' : 'สรุป', { views: [{ state: 'frozen', ySplit: 8, showGridLines: false }] });
   sheet.properties.defaultRowHeight = 22;
   sheet.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
   sheet.columns = [{ width: 30 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 18 }];
   sheet.mergeCells('A1:E1');
-  sheet.getCell('A1').value = 'รายงานสรุปยอดลูกค้า Scenery Farm & Resort';
+  sheet.getCell('A1').value = isYearly ? 'รายงานสรุปยอดลูกค้ารายเดือน Scenery Farm & Resort' : 'รายงานสรุปยอดลูกค้า Scenery Farm & Resort';
   sheet.mergeCells('A2:E2');
   sheet.getCell('A2').value = `${meta.label} • ${meta.period}`;
   styleTitle(sheet.getCell('A1'), 20);
