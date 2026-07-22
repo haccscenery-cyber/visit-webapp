@@ -13,14 +13,18 @@ export async function onRequestPost(context) {
 
   const payload = JSON.parse(rawBody);
   for (const event of payload.events || []) {
-    if (event.source?.type !== 'group' || !event.source.groupId) continue;
+    const isGroupEvent = event.source?.type === 'group' && event.source.groupId;
+    const isDirectEvent = event.source?.type === 'user' && event.source.userId;
+    if (!isGroupEvent && !isDirectEvent) continue;
     try {
-      if (event.type === 'leave') {
+      if (isGroupEvent && event.type === 'leave') {
         await deleteGroupId(env, event.source.groupId);
         console.log(JSON.stringify({ event: 'line_group_id_removed', event_type: event.type }));
       } else {
-        await saveGroupId(env, event.source.groupId);
-        console.log(JSON.stringify({ event: 'line_group_id_captured', event_type: event.type }));
+        if (isGroupEvent) {
+          await saveGroupId(env, event.source.groupId);
+          console.log(JSON.stringify({ event: 'line_group_id_captured', event_type: event.type }));
+        }
         if (isLatestReportCommand(event)) await replyWithLatestReport(env, event.replyToken);
       }
     } catch (error) {
