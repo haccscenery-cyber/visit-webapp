@@ -765,8 +765,7 @@ async function downloadExcel() {
     if (period === 'yearly') {
       buildYearlyDetailWorksheet(workbook, summaryRows, meta);
     } else {
-      buildDailyWorksheet(workbook, dailyRecords, meta);
-      buildDetailWorksheet(workbook, dailyRecords.filter((report) => report.hasData), meta);
+      buildPeriodDetailWorksheet(workbook, dailyRecords, meta);
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -856,24 +855,42 @@ function buildDailyWorksheet(workbook, records, meta) {
   setNumberFormat(sheet, 4, 2, end, 4, '#,##0');
 }
 
-function buildYearlyDetailWorksheet(workbook, rows, meta) {
+function buildPeriodDetailWorksheet(workbook, records, meta) {
+  const rows = records.map((record) => ({
+    label: formatThaiDate(record.date),
+    quantities: record.quantities,
+    farm: record.farm,
+    resort: record.resort,
+    count: record.hasData ? 1 : 0,
+    hasData: record.hasData
+  }));
+  buildYearlyDetailWorksheet(workbook, rows, meta, {
+    sheetName: 'รายละเอียดรายวัน',
+    title: `รายละเอียดรายวัน Scenery Farm & Resort • ${meta.period}`,
+    periodLabel: 'วันที่',
+    totalLabel: 'รวมช่วงเวลาที่เลือก',
+    countLabel: 'วันที่บันทึก'
+  });
+}
+
+function buildYearlyDetailWorksheet(workbook, rows, meta, options = {}) {
   const farmItems = items.filter((item) => item.group === 'farm');
   const resortItems = items.filter((item) => item.group === 'resort');
   const columns = [
-    { header: 'เดือน', key: 'month', width: 24 },
+    { header: options.periodLabel || 'เดือน', key: 'month', width: 24 },
     ...farmItems.map((item) => ({ header: item.name, key: item.code, width: 22 })),
     ...resortItems.map((item) => ({ header: item.name, key: item.code, width: 22 })),
     { header: 'รวมฟาร์ม', key: 'farm', width: 16 },
     { header: 'รวมเข้าพัก', key: 'resort', width: 16 },
     { header: 'รวมทั้งหมด', key: 'overall', width: 16 },
-    { header: 'วันที่บันทึก', key: 'count', width: 14 }
+    { header: options.countLabel || 'วันที่บันทึก', key: 'count', width: 14 }
   ];
-  const sheet = workbook.addWorksheet('รายละเอียดรายเดือน', { views: [{ state: 'frozen', ySplit: 5, xSplit: 1, showGridLines: false }] });
+  const sheet = workbook.addWorksheet(options.sheetName || 'รายละเอียดรายเดือน', { views: [{ state: 'frozen', ySplit: 5, xSplit: 1, showGridLines: false }] });
   sheet.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.2, right: 0.2, top: 0.45, bottom: 0.45, header: 0.2, footer: 0.2 } };
   sheet.columns = columns.map((column) => ({ key: column.key, width: column.width }));
   const lastColumn = columns.length;
   sheet.mergeCells(1, 1, 1, lastColumn);
-  sheet.getCell(1, 1).value = `รายละเอียดรายเดือน Scenery Farm & Resort • ${meta.period}`;
+  sheet.getCell(1, 1).value = options.title || `รายละเอียดรายเดือน Scenery Farm & Resort • ${meta.period}`;
   styleTitle(sheet.getCell(1, 1), 18);
   sheet.getRow(1).height = 36;
 
@@ -917,7 +934,7 @@ function buildYearlyDetailWorksheet(workbook, rows, meta) {
   });
 
   const totalRow = rows.length + 5;
-  sheet.getCell(totalRow, 1).value = 'รวมทั้งปี';
+  sheet.getCell(totalRow, 1).value = options.totalLabel || 'รวมทั้งปี';
   for (let column = 2; column <= lastColumn; column += 1) {
     const letter = sheet.getColumn(column).letter;
     const result = detailRows.reduce((sum, detailRow) => sum + Number(detailRow[column - 1] || 0), 0);

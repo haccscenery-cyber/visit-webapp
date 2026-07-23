@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>แชร์รายงานลูกค้า</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    :root { color-scheme: light; font-family: Tahoma, Arial, sans-serif; background: #f7f2ec; color: #2f2925; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box; }
+    main { width: min(100%, 420px); background: #fff; border: 1px solid #eadfd5; border-radius: 20px; padding: 28px 22px; box-shadow: 0 12px 32px rgba(90,60,40,.12); text-align: center; }
+    .icon { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 50%; display: grid; place-items: center; background: #eaf7ef; color: #06a947; font-size: 30px; }
+    h1 { font-size: 20px; margin: 0 0 10px; }
+    p { color: #71655e; line-height: 1.6; margin: 0; }
+    button { width: 100%; border: 0; border-radius: 12px; margin-top: 22px; padding: 14px; background: #06c755; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; }
+    #status.error { color: #a83224; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="icon">➤</div>
+    <h1>แชร์รายงานผ่าน LINE</h1>
+    <p id="status">กำลังเตรียมรายงานฉบับเดียวกับที่ได้รับ…</p>
+    <button id="share" type="button" disabled>เลือกผู้รับและแชร์รายงาน</button>
+  </main>
+  <script>
+    const statusElement = document.querySelector('#status');
+    const shareButton = document.querySelector('#share');
+    let reportMessage;
+
+    function reportParams() {
+      const params = new URLSearchParams(location.search);
+      if (params.has('date')) return params;
+      const state = params.get('liff.state');
+      return state ? new URLSearchParams(decodeURIComponent(state).replace(/^[^?]*\?/, '')) : params;
+    }
+
+    function showError(message) {
+      statusElement.textContent = message;
+      statusElement.classList.add('error');
+      shareButton.disabled = true;
+    }
+
+    async function initialize() {
+      try {
+        const configResponse = await fetch('/api/line-share-config', { cache: 'no-store' });
+        const config = await configResponse.json();
+        if (!configResponse.ok) throw new Error(config.error || 'ยังไม่ได้ตั้งค่าการแชร์ LINE');
+        await liff.init({ liffId: config.liffId, withLoginOnExternalBrowser: true });
+        if (!liff.isLoggedIn()) return liff.login();
+        if (!liff.isApiAvailable('shareTargetPicker')) {
+          throw new Error('กรุณาเปิดลิงก์นี้ด้วยแอป LINE เวอร์ชันล่าสุด');
+        }
+        const response = await fetch(`/api/line-share?${reportParams().toString()}`, { cache: 'no-store' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'ไม่พบรายงาน');
+        reportMessage = result.message;
+        statusElement.textContent = 'รายงานพร้อมแล้ว กดปุ่มด้านล่างเพื่อเลือกกลุ่มหรือเพื่อน';
+        shareButton.disabled = false;
+      } catch (error) {
+        showError(error.message || 'ไม่สามารถเตรียมรายงานได้');
+      }
+    }
+
+    shareButton.addEventListener('click', async () => {
+      shareButton.disabled = true;
+      statusElement.textContent = 'กำลังเปิดรายชื่อผู้รับ…';
+      try {
+        const result = await liff.shareTargetPicker([reportMessage], { isMultiple: true });
+        statusElement.textContent = result ? 'แชร์รายงานเรียบร้อยแล้ว' : 'ยกเลิกการแชร์';
+        if (result && liff.isInClient()) window.setTimeout(() => liff.closeWindow(), 700);
+      } catch (error) {
+        showError(error.message || 'แชร์รายงานไม่สำเร็จ กรุณาลองใหม่');
+      } finally {
+        shareButton.disabled = false;
+      }
+    });
+
+    initialize();
+  </script>
+</body>
+</html>

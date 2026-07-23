@@ -1,4 +1,4 @@
-import { createReportFlexMessage, cumulativeTotals } from './line-send.js';
+import { createReportFlexMessage, createReportShareUrl, cumulativeTotals } from './line-send.js';
 
 const LINE_REPLY_ENDPOINT = 'https://api.line.me/v2/bot/message/reply';
 
@@ -60,13 +60,16 @@ async function replyWithLatestReport(env, replyToken) {
   const farm = displayEntries.filter((item) => item.item_group === 'farm').reduce((sum, item) => sum + item.quantity, 0);
   const resort = displayEntries.filter((item) => item.item_group === 'resort').reduce((sum, item) => sum + item.quantity, 0);
   const cumulative = cumulativeTotals(periodReports, report.report_date, reportItems);
-  return sendReply(env, replyToken, createReportFlexMessage({
+  const versionNo = versions[0]?.version_no || 1;
+  const payload = {
     report_date: report.report_date,
     note: report.note,
-    version_no: versions[0]?.version_no || 1,
+    version_no: versionNo,
     entries: displayEntries,
     totals: { farm, resort, overall: farm + resort, month_cumulative: cumulative.month, year_cumulative: cumulative.year }
-  }));
+  };
+  const shareUrl = await createReportShareUrl(env, report.report_date, versionNo);
+  return sendReply(env, replyToken, createReportFlexMessage(payload, { shareUrl }));
 }
 
 async function sendReply(env, replyToken, message) {

@@ -65,7 +65,12 @@ export async function onRequestPost(context) {
     const versions = await rest(env, 'report_versions', { method: 'POST', body: { report_id: report.id, version_no: versionNo, payload, created_by: user.id }, prefer: 'return=representation' });
     const version = versions[0];
 
-    const deliveries = await pushToDestinations(env.LINE_CHANNEL_ACCESS_TOKEN, pendingDestinationIds, createReportFlexMessage(payload));
+    const shareUrl = await createReportShareUrl(env, report.report_date, versionNo);
+    const deliveries = await pushToDestinations(
+      env.LINE_CHANNEL_ACCESS_TOKEN,
+      pendingDestinationIds,
+      createReportFlexMessage(payload, { shareUrl })
+    );
     const failedDeliveries = deliveries.filter((delivery) => delivery.status === 'failed');
     const reportStatus = failedDeliveries.length ? 'failed' : 'sent';
     const reportUpdate = reportStatus === 'sent'
@@ -166,10 +171,10 @@ async function rest(env, path, options = {}) {
   return responseBody;
 }
 
-export function createReportFlexMessage(payload) {
+export function createReportFlexMessage(payload, options = {}) {
   const date = thaiDate(payload.report_date);
   const note = formatNote(payload.note);
-  const shareUrl = `https://line.me/R/share?text=${encodeURIComponent(createShareText(payload, date, note))}`;
+  const shareUrl = options.shareUrl || `https://line.me/R/share?text=${encodeURIComponent(createShareText(payload, date, note))}`;
   const details = payload.entries.map((entry) => detailRow(entry));
   const bodyContents = [
     { type: 'text', text: 'สรุปจำนวนลูกค้า', weight: 'bold', size: 'md', color: '#1F2937' },
@@ -218,6 +223,48 @@ export function createReportFlexMessage(payload) {
       ] }
     }
   };
+}
+
+export async function createReportShareUrl(env, reportDate, versionNo) {
+  if (!env.LINE_LIFF_ID || !env.LINE_CHANNEL_SECRET) {
+    throw new Error('LINE share configuration is missing');
+  }
+  const value = `${reportDate}:${versionNo}`;
+  const token = await signShareValue(value, env.LINE_CHANNEL_SECRET);
+  const query = new URLSearchParams({ date: reportDate, version: String(versionNo), token });
+  return `https://liff.line.me/${env.LINE_LIFF_ID}?${query.toString()}`;
+}
+
+export async function verifyReportShareToken(env, reportDate, versionNo, token) {
+  if (!env.LINE_CHANNEL_SECRET || !token) return false;
+  const expected = await signShareValue(`${reportDate}:${versionNo}`, env.LINE_CHANNEL_SECRET);
+  return timingSafeEqual(token, expected);
+}
+
+async function signShareValue(value, secret) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const digest = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value));
+  return base64Url(digest);
+}
+
+function base64Url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let value = '';
+  for (const byte of bytes) value += String.fromCharCode(byte);
+  return btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function timingSafeEqual(left, right) {
+  if (typeof left !== 'string' || typeof right !== 'string' || left.length !== right.length) return false;
+  let result = 0;
+  for (let index = 0; index < left.length; index += 1) result |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  return result === 0;
 }
 
 function createShareText(payload, date, note) {
