@@ -410,7 +410,10 @@ function renderHistoryWorkspace() {
   elements.reportHistoryTable.innerHTML = reports.length ? reports.map((report) => `<tr>
     <td>${formatThaiDate(report.date)}</td><td class="number">${report.farm.toLocaleString('th-TH')}</td><td class="number">${report.resort.toLocaleString('th-TH')}</td><td class="number">${report.overall.toLocaleString('th-TH')}</td>
     <td><span class="badge ${statusClass(report.status)}">${labels[report.status]}</span></td><td>${formatDateTime(report.updatedAt)}</td>
-    <td class="number"><button class="button text edit-history-button" type="button" data-edit-date="${report.date}" ${state.role === 'accountant' || state.role === 'admin' || (state.role === 'receptionist' && !['sent', 'revised_pending_resend'].includes(report.status)) ? '' : 'disabled'}>แก้ไข</button></td>
+    <td class="history-actions">
+      <button class="button text edit-history-button" type="button" data-edit-date="${report.date}" ${state.role === 'accountant' || state.role === 'admin' || (state.role === 'receptionist' && !['sent', 'revised_pending_resend'].includes(report.status)) ? '' : 'disabled'}>แก้ไข</button>
+      <button class="button text danger delete-history-button" type="button" data-delete-date="${report.date}" ${['accountant', 'admin'].includes(state.role) && report.date < localIsoDate() ? '' : 'disabled'}>ลบ</button>
+    </td>
   </tr>`).join('') : '<tr><td colspan="7" class="muted">ไม่พบรายการในปีหรือเงื่อนไขที่เลือก</td></tr>';
 }
 
@@ -731,6 +734,11 @@ function exportSummaryRows(dailyRecords, period, anchorDate) {
       label: formatThaiMonth(year, index + 1),
       farm: records.reduce((sum, report) => sum + report.farm, 0),
       resort: records.reduce((sum, report) => sum + report.resort, 0),
+      count: records.filter((report) => report.hasData).length,
+      quantities: Object.fromEntries(items.map((item) => [
+        item.code,
+        records.reduce((sum, report) => sum + Number(report.quantities[item.code] || 0), 0)
+      ])),
       hasData: records.length > 0
     };
   });
@@ -754,7 +762,9 @@ async function downloadExcel() {
     workbook.calcProperties.fullCalcOnLoad = true;
 
     buildSummaryWorksheet(workbook, summaryRows, meta, period);
-    if (period !== 'yearly') {
+    if (period === 'yearly') {
+      buildYearlyDetailWorksheet(workbook, summaryRows, meta);
+    } else {
       buildDailyWorksheet(workbook, dailyRecords, meta);
       buildDetailWorksheet(workbook, dailyRecords.filter((report) => report.hasData), meta);
     }
@@ -844,6 +854,106 @@ function buildDailyWorksheet(workbook, records, meta) {
   if (!records.length) sheet.getCell('A4').value = 'ยังไม่มีข้อมูลที่บันทึกในช่วงเวลานี้';
   sheet.autoFilter = `A3:G${end}`;
   setNumberFormat(sheet, 4, 2, end, 4, '#,##0');
+}
+
+function buildYearlyDetailWorksheet(workbook, rows, meta) {
+  const farmItems = items.filter((item) => item.group === 'farm');
+  const resortItems = items.filter((item) => item.group === 'resort');
+  const columns = [
+    { header: 'เดือน', key: 'month', width: 24 },
+    ...farmItems.map((item) => ({ header: item.name, key: item.code, width: 22 })),
+    ...resortItems.map((item) => ({ header: item.name, key: item.code, width: 22 })),
+    { header: 'รวมฟาร์ม', key: 'farm', width: 16 },
+    { header: 'รวมเข้าพัก', key: 'resort', width: 16 },
+    { header: 'รวมทั้งหมด', key: 'overall', width: 16 },
+    { header: 'วันที่บันทึก', key: 'count', width: 14 }
+  ];
+  const sheet = workbook.addWorksheet('รายละเอียดรายเดือน', { views: [{ state: 'frozen', ySplit: 5, xSplit: 1, showGridLines: false }] });
+  sheet.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.2, right: 0.2, top: 0.45, bottom: 0.45, header: 0.2, footer: 0.2 } };
+  sheet.columns = columns.map((column) => ({ key: column.key, width: column.width }));
+  const lastColumn = columns.length;
+  sheet.mergeCells(1, 1, 1, lastColumn);
+  sheet.getCell(1, 1).value = `รายละเอียดรายเดือน Scenery Farm & Resort • ${meta.period}`;
+  styleTitle(sheet.getCell(1, 1), 18);
+  sheet.getRow(1).height = 36;
+
+  sheet.mergeCells(3, 1, 4, 1);
+  sheet.getCell(3, 1).value = 'ช่วงเวลา';
+  if (farmItems.length) {
+    sheet.mergeCells(3, 2, 3, farmItems.length + 1);
+    sheet.getCell(3, 2).value = 'รายละเอียดผู้เข้าชมฟาร์ม';
+  }
+  const resortStart = farmItems.length + 2;
+  if (resortItems.length) {
+    sheet.mergeCells(3, resortStart, 3, resortStart + resortItems.length - 1);
+    sheet.getCell(3, resortStart).value = 'รายละเอียดลูกค้าเข้าพัก';
+  }
+  const totalStart = farmItems.length + resortItems.length + 2;
+  sheet.mergeCells(3, totalStart, 3, lastColumn);
+  sheet.getCell(3, totalStart).value = 'สรุปยอด';
+  columns.slice(1).forEach((column, index) => { sheet.getCell(4, index + 2).value = column.header; });
+  styleTableHeader(sheet.getRow(3));
+  styleTableHeader(sheet.getRow(4));
+  sheet.getRow(3).height = 26;
+  sheet.getRow(4).height = 42;
+
+  const detailRows = rows.map((row) => [
+    row.label,
+    ...farmItems.map((item) => Number(row.quantities[item.code] || 0)),
+    ...resortItems.map((item) => Number(row.quantities[item.code] || 0)),
+    row.farm,
+    row.resort,
+    row.farm + row.resort,
+    row.count
+  ]);
+  rows.forEach((row, index) => {
+    const rowNumber = index + 5;
+    sheet.getRow(rowNumber).values = detailRows[index];
+    styleDataRow(sheet.getRow(rowNumber), index, row.hasData);
+    for (let column = 2; column <= lastColumn; column += 1) {
+      sheet.getCell(rowNumber, column).alignment = { horizontal: 'right', vertical: 'middle' };
+      sheet.getCell(rowNumber, column).numFmt = '#,##0';
+    }
+  });
+
+  const totalRow = rows.length + 5;
+  sheet.getCell(totalRow, 1).value = 'รวมทั้งปี';
+  for (let column = 2; column <= lastColumn; column += 1) {
+    const letter = sheet.getColumn(column).letter;
+    const result = detailRows.reduce((sum, detailRow) => sum + Number(detailRow[column - 1] || 0), 0);
+    sheet.getCell(totalRow, column).value = { formula: `SUM(${letter}5:${letter}${totalRow - 1})`, result };
+    sheet.getCell(totalRow, column).numFmt = '#,##0';
+  }
+  sheet.getRow(totalRow).height = 28;
+  sheet.getRow(totalRow).eachCell((cell) => {
+    cell.font = { name: 'Tahoma', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF70462E' } };
+    cell.alignment = { horizontal: cell.col === 1 ? 'left' : 'right', vertical: 'middle' };
+  });
+  sheet.autoFilter = { from: { row: 4, column: 1 }, to: { row: totalRow - 1, column: lastColumn } };
+}
+
+async function deleteHistoricalReport(reportDate) {
+  if (!['accountant', 'admin'].includes(state.role)) return showToast('คุณไม่มีสิทธิ์ลบรายงานย้อนหลัง', 'error');
+  if (reportDate >= localIsoDate()) return showToast('ลบได้เฉพาะรายงานย้อนหลังเท่านั้น', 'error');
+  const thaiDate = formatThaiDate(reportDate);
+  if (!window.confirm(`ยืนยันลบรายงานวันที่ ${thaiDate}?\n\nข้อมูล รายการย่อย และประวัติการส่งของวันนี้จะถูกลบถาวร`)) return;
+  try {
+    const accessToken = await freshAccessToken();
+    const response = await fetch('/api/report-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ report_date: reportDate })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'ไม่สามารถลบรายงานย้อนหลังได้');
+    if (state.date === reportDate) state.date = localIsoDate();
+    await loadReport();
+    render();
+    showToast(`ลบรายงานวันที่ ${thaiDate} เรียบร้อยแล้ว`, 'success');
+  } catch (error) {
+    showToast(error.message || 'ไม่สามารถลบรายงานย้อนหลังได้', 'error');
+  }
 }
 
 function buildDetailWorksheet(workbook, records, meta) {
@@ -975,9 +1085,11 @@ function bindEvents() {
   elements.historySearch.addEventListener('input', (event) => { state.historySearch = event.target.value; renderHistoryWorkspace(); });
   document.querySelector('#history-use-selected-date').addEventListener('click', () => setView('dashboard'));
   elements.reportHistoryTable.addEventListener('click', async (event) => {
-    const button = event.target.closest('[data-edit-date]');
-    if (!button) return;
-    state.date = button.dataset.editDate;
+    const deleteButton = event.target.closest('[data-delete-date]');
+    if (deleteButton) return deleteHistoricalReport(deleteButton.dataset.deleteDate);
+    const editButton = event.target.closest('[data-edit-date]');
+    if (!editButton) return;
+    state.date = editButton.dataset.editDate;
     await loadReport();
     setView('dashboard');
     openEntryModal();

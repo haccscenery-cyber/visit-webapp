@@ -200,6 +200,9 @@ td.number { font-weight: 500; text-align: right; }
 .history-toolbar .field { width: min(310px, 100%); margin: 0; }
 .history-toolbar p { max-width: 620px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .edit-history-button { min-height: 30px; }
+.history-actions { display: flex; justify-content: flex-end; gap: 4px; white-space: nowrap; }
+.button.text.danger { color: #a3362a; }
+.button.text.danger:hover:not(:disabled) { background: #fcebe8; }
 
 .modal { width: min(590px, calc(100% - 30px)); max-height: min(760px, calc(100vh - 30px)); padding: 0; border: 0; border-radius: 8px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
 #login-modal { overflow: hidden; }
