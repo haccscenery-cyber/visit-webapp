@@ -28,10 +28,13 @@ export async function onRequestPost(context) {
       return json({ error: 'ต้องบันทึกข้อมูลอย่างน้อยหนึ่งแผนกก่อนส่งรายงาน' }, 422);
     }
 
-    // Do not resend this daily report to a friend who already accepted it.
+    // Automated retries skip recipients that already accepted this report.
+    // A deliberate click from the report preview may request a fresh version.
     const sentLogs = await rest(env, `line_delivery_logs?report_id=eq.${report.id}&status=eq.sent&select=destination`, { method: 'GET' });
     const sentDestinations = new Set(sentLogs.map((log) => log.destination));
-    const pendingDestinationIds = destinationIds.filter((destinationId) => !sentDestinations.has(destinationLabel(destinationId)));
+    const pendingDestinationIds = body.force_resend === true
+      ? destinationIds
+      : destinationIds.filter((destinationId) => !sentDestinations.has(destinationLabel(destinationId)));
     if (!pendingDestinationIds.length) return json({ ok: true, already_sent: true, destination_count: destinationIds.length });
 
     await rest(env, `daily_reports?id=eq.${report.id}`, { method: 'PATCH', body: { status: 'sending', updated_by: user.id } });

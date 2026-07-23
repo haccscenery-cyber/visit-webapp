@@ -547,7 +547,7 @@ async function requestLineSend(accessToken) {
   const response = await fetch('/api/line-send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-    body: JSON.stringify({ report_date: state.date })
+    body: JSON.stringify({ report_date: state.date, force_resend: true })
   });
   const contentType = response.headers.get('content-type') || '';
   const result = contentType.includes('application/json') ? await response.json() : { error: await response.text() };
