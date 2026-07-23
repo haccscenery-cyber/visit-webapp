@@ -24,7 +24,9 @@ export async function onRequestPost(context) {
     const reports = await rest(env, `daily_reports?report_date=eq.${body.report_date}&select=id,report_date,status,note,reception_saved_at,accounting_saved_at`, { method: 'GET' });
     const report = reports[0];
     if (!report) return json({ error: 'No daily report exists for this date' }, 404);
-    if (!report.reception_saved_at || !report.accounting_saved_at) return json({ error: 'Both reception and accounting data must be saved before sending' }, 422);
+    if (!reportCanBeSent(report)) {
+      return json({ error: 'ต้องบันทึกข้อมูลอย่างน้อยหนึ่งแผนกก่อนส่งรายงาน' }, 422);
+    }
 
     // Do not resend this daily report to a group that already accepted it.
     const sentLogs = await rest(env, `line_delivery_logs?report_id=eq.${report.id}&status=eq.sent&select=destination`, { method: 'GET' });
@@ -103,6 +105,10 @@ export async function onRequestPost(context) {
   } catch (error) {
     return json({ error: error.message || 'Unable to send the LINE report' }, 500);
   }
+}
+
+export function reportCanBeSent(report) {
+  return Boolean(report?.reception_saved_at || report?.accounting_saved_at);
 }
 
 async function resolveGroupIds(env) {
