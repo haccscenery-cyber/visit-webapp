@@ -18,8 +18,8 @@ export async function onRequestPost(context) {
     const profile = await rest(env, `profiles?id=eq.${user.id}&select=id,display_name,role`, { method: 'GET' });
     if (!profile[0] || !['accountant', 'admin'].includes(profile[0].role)) return json({ error: 'Only accounting staff or administrators can send reports' }, 403);
 
-    const groupIds = await resolveGroupIds(env);
-    if (!groupIds.length) return json({ error: 'No LINE group has been captured yet. Send a message in each target group and try again.' }, 503);
+    const destinationIds = await resolveDestinationIds(env);
+    if (!destinationIds.length) return json({ error: 'ยังไม่พบเพื่อน LINE สำหรับรับรายงาน กรุณาส่งข้อความหา OA ในห้องส่วนตัวหนึ่งครั้งแล้วลองใหม่' }, 503);
 
     const reports = await rest(env, `daily_reports?report_date=eq.${body.report_date}&select=id,report_date,status,note,reception_saved_at,accounting_saved_at`, { method: 'GET' });
     const report = reports[0];
@@ -28,11 +28,11 @@ export async function onRequestPost(context) {
       return json({ error: 'ต้องบันทึกข้อมูลอย่างน้อยหนึ่งแผนกก่อนส่งรายงาน' }, 422);
     }
 
-    // Do not resend this daily report to a group that already accepted it.
+    // Do not resend this daily report to a friend who already accepted it.
     const sentLogs = await rest(env, `line_delivery_logs?report_id=eq.${report.id}&status=eq.sent&select=destination`, { method: 'GET' });
     const sentDestinations = new Set(sentLogs.map((log) => log.destination));
-    const pendingGroupIds = groupIds.filter((groupId) => !sentDestinations.has(destinationLabel(groupId)));
-    if (!pendingGroupIds.length) return json({ ok: true, already_sent: true, group_count: groupIds.length });
+    const pendingDestinationIds = destinationIds.filter((destinationId) => !sentDestinations.has(destinationLabel(destinationId)));
+    if (!pendingDestinationIds.length) return json({ ok: true, already_sent: true, destination_count: destinationIds.length });
 
     await rest(env, `daily_reports?id=eq.${report.id}`, { method: 'PATCH', body: { status: 'sending', updated_by: user.id } });
     const yearStart = `${report.report_date.slice(0, 4)}-01-01`;
@@ -65,7 +65,7 @@ export async function onRequestPost(context) {
     const versions = await rest(env, 'report_versions', { method: 'POST', body: { report_id: report.id, version_no: versionNo, payload, created_by: user.id }, prefer: 'return=representation' });
     const version = versions[0];
 
-    const deliveries = await pushToGroups(env.LINE_CHANNEL_ACCESS_TOKEN, pendingGroupIds, createReportFlexMessage(payload));
+    const deliveries = await pushToDestinations(env.LINE_CHANNEL_ACCESS_TOKEN, pendingDestinationIds, createReportFlexMessage(payload));
     const failedDeliveries = deliveries.filter((delivery) => delivery.status === 'failed');
     const reportStatus = failedDeliveries.length ? 'failed' : 'sent';
     const reportUpdate = reportStatus === 'sent'
@@ -80,7 +80,7 @@ export async function onRequestPost(context) {
           report_id: report.id,
           report_version_id: version.id,
           status: delivery.status,
-          destination: destinationLabel(delivery.groupId),
+          destination: destinationLabel(delivery.destinationId),
           line_request_id: delivery.requestId,
           ...(delivery.errorMessage ? { error_message: delivery.errorMessage } : {}),
           sent_by: user.id
@@ -93,15 +93,15 @@ export async function onRequestPost(context) {
       const quotaExceeded = failedDeliveries.every((delivery) => /monthly limit/i.test(delivery.errorMessage || ''));
       return json({
         error: quotaExceeded
-          ? `โควตาส่งข้อความ LINE รายเดือนหมดแล้ว ส่งสำเร็จ ${sentCount} กลุ่ม เหลือ ${failedDeliveries.length} กลุ่ม กรุณาเพิ่มโควตาใน LINE Official Account แล้วกดส่งอีกครั้ง ระบบจะไม่ส่งซ้ำกลุ่มที่สำเร็จแล้ว`
-          : `ส่ง LINE สำเร็จ ${sentCount} จาก ${deliveries.length} กลุ่ม และมี ${failedDeliveries.length} กลุ่มส่งไม่สำเร็จ กรุณาตรวจสอบประวัติการส่ง`,
+          ? `โควตาส่งข้อความ LINE รายเดือนหมดแล้ว ส่งสำเร็จ ${sentCount} คน เหลือ ${failedDeliveries.length} คน กรุณาเพิ่มโควตาใน LINE Official Account แล้วกดส่งอีกครั้ง ระบบจะไม่ส่งซ้ำผู้รับที่สำเร็จแล้ว`
+          : `ส่ง LINE สำเร็จ ${sentCount} จาก ${deliveries.length} คน และมี ${failedDeliveries.length} คนส่งไม่สำเร็จ กรุณาตรวจสอบประวัติการส่ง`,
         sent_groups: sentCount,
         failed_groups: failedDeliveries.length,
         code: quotaExceeded ? 'LINE_MONTHLY_LIMIT_REACHED' : 'LINE_DELIVERY_FAILED'
       }, 502);
     }
 
-    return json({ ok: true, version_no: versionNo, group_count: groupIds.length });
+    return json({ ok: true, version_no: versionNo, destination_count: destinationIds.length });
   } catch (error) {
     return json({ error: error.message || 'Unable to send the LINE report' }, 500);
   }
@@ -111,37 +111,37 @@ export function reportCanBeSent(report) {
   return Boolean(report?.reception_saved_at || report?.accounting_saved_at);
 }
 
-async function resolveGroupIds(env) {
+async function resolveDestinationIds(env) {
   const settings = await rest(env, 'line_group_settings?setting_key=eq.report_destination&select=group_id&order=captured_at.asc', { method: 'GET' });
-  return uniqueGroupIds(env.LINE_GROUP_ID, settings);
+  return [...new Set((settings || []).map((setting) => setting.group_id).filter((destinationId) => /^U[0-9a-f]+$/i.test(destinationId || '')))];
 }
 
 function uniqueGroupIds(environmentGroupId, settings) {
   return [...new Set([environmentGroupId, ...(settings || []).map((setting) => setting.group_id)].filter((groupId) => typeof groupId === 'string' && groupId.trim()))];
 }
 
-async function pushToGroups(accessToken, groupIds, message, fetchImpl = fetch) {
-  return Promise.all(groupIds.map(async (groupId) => {
+async function pushToDestinations(accessToken, destinationIds, message, fetchImpl = fetch) {
+  return Promise.all(destinationIds.map(async (destinationId) => {
     try {
       const response = await fetchImpl(LINE_PUSH_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ to: groupId, messages: [message] })
+        body: JSON.stringify({ to: destinationId, messages: [message] })
       });
       return {
-        groupId,
+        destinationId,
         status: response.ok ? 'sent' : 'failed',
         requestId: response.headers.get('x-line-request-id'),
         errorMessage: response.ok ? null : (await response.text()).slice(0, 1000)
       };
     } catch (error) {
-      return { groupId, status: 'failed', requestId: null, errorMessage: String(error?.message || error).slice(0, 1000) };
+      return { destinationId, status: 'failed', requestId: null, errorMessage: String(error?.message || error).slice(0, 1000) };
     }
   }));
 }
 
-function destinationLabel(groupId) {
-  return `LINE group •••${groupId.slice(-6)}`;
+function destinationLabel(destinationId) {
+  return `LINE friend •••${destinationId.slice(-6)}`;
 }
 
 async function getCurrentUser(env, token) {

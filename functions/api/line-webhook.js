@@ -2,8 +2,8 @@ import { createReportFlexMessage, cumulativeTotals } from './line-send.js';
 
 const LINE_REPLY_ENDPOINT = 'https://api.line.me/v2/bot/message/reply';
 
-// LINE supplies group IDs in webhook events. Store every group privately so a
-// manual report can be pushed to all groups where the bot is participating.
+// Store direct-chat user IDs privately after LINE verifies the webhook
+// signature. This lets the report button push to friends of the OA.
 export async function onRequestPost(context) {
   const { request, env } = context;
   if (!env.LINE_CHANNEL_SECRET) return new Response('LINE_CHANNEL_SECRET is not configured', { status: 500 });
@@ -17,19 +17,16 @@ export async function onRequestPost(context) {
     const isDirectEvent = event.source?.type === 'user' && event.source.userId;
     if (!isGroupEvent && !isDirectEvent) continue;
     try {
-      if (isGroupEvent && event.type === 'leave') {
-        await deleteGroupId(env, event.source.groupId);
-        console.log(JSON.stringify({ event: 'line_group_id_removed', event_type: event.type }));
-      } else {
-        if (isGroupEvent) {
-          await saveGroupId(env, event.source.groupId);
-          console.log(JSON.stringify({ event: 'line_group_id_captured', event_type: event.type }));
-        }
+      if (isDirectEvent) {
+        await saveDestinationId(env, event.source.userId);
+        console.log(JSON.stringify({ event: 'line_friend_id_captured', event_type: event.type }));
+      }
+      if (!(isGroupEvent && event.type === 'leave')) {
         if (isLatestReportCommand(event)) await replyWithLatestReport(env, event.replyToken);
       }
     } catch (error) {
-      console.error(JSON.stringify({ event: 'line_group_id_capture_failed', event_type: event.type, error: error.message }));
-      return new Response('Unable to save LINE group ID', { status: 500 });
+      console.error(JSON.stringify({ event: 'line_destination_capture_failed', event_type: event.type, error: error.message }));
+      return new Response('Unable to save LINE destination ID', { status: 500 });
     }
   }
   return new Response('OK');
@@ -88,7 +85,7 @@ async function rest(env, path) {
   return body;
 }
 
-async function saveGroupId(env, groupId) {
+async function saveDestinationId(env, destinationId) {
   if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) throw new Error('Supabase server configuration is missing');
   const response = await fetch(`${env.SUPABASE_URL}/rest/v1/line_group_settings?on_conflict=group_id`, {
     method: 'POST',
@@ -97,16 +94,7 @@ async function saveGroupId(env, groupId) {
       'Content-Type': 'application/json',
       Prefer: 'resolution=merge-duplicates,return=minimal'
     },
-    body: JSON.stringify({ setting_key: 'report_destination', group_id: groupId, updated_at: new Date().toISOString() })
-  });
-  if (!response.ok) throw new Error(await response.text());
-}
-
-async function deleteGroupId(env, groupId) {
-  if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) throw new Error('Supabase server configuration is missing');
-  const response = await fetch(`${env.SUPABASE_URL}/rest/v1/line_group_settings?group_id=eq.${encodeURIComponent(groupId)}`, {
-    method: 'DELETE',
-    headers: { apikey: env.SUPABASE_SECRET_KEY }
+    body: JSON.stringify({ setting_key: 'report_destination', group_id: destinationId, updated_at: new Date().toISOString() })
   });
   if (!response.ok) throw new Error(await response.text());
 }

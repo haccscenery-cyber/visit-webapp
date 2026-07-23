@@ -485,7 +485,7 @@ function openLineModal() {
   const version = Math.max(0, ...state.history.map((log) => Number(log.version) || 0)) + 1;
   const isRevision = state.report.status === 'revised_pending_resend';
   elements.linePreview.innerHTML = `<div class="line-card-header"><strong>${isRevision ? `รายงานฉบับแก้ไขครั้งที่ ${version}` : `รายงานฉบับที่ ${version}`}</strong><span>ยอดคนเข้าชมฟาร์มและลูกค้าเข้าพัก ประจำวันที่ ${formatThaiDate(state.date)}</span></div><div class="line-card-totals"><div><span>ยอดเข้าชมฟาร์ม</span><b>${sum.farm.toLocaleString('th-TH')} คน</b></div><div><span>ลูกค้าเข้าพัก</span><b>${sum.resort.toLocaleString('th-TH')} คน</b></div><div class="line-total-overall"><span>ยอดรวมทั้งหมด</span><strong>${sum.overall.toLocaleString('th-TH')} คน</strong></div><div class="line-total-cumulative"><span class="line-cumulative-title">ยอดสะสมเดือน<small>ถึงวันที่รายงาน</small></span><span class="line-cumulative-metrics"><span class="line-cumulative-metric"><i>เข้าชมฟาร์ม</i><b>${sum.month.farm.toLocaleString('th-TH')} คน</b></span><span class="line-cumulative-metric"><i>เข้าพัก</i><b>${sum.month.resort.toLocaleString('th-TH')} คน</b></span></span></div><div class="line-total-cumulative"><span class="line-cumulative-title">ยอดสะสมปี<small>ถึงวันที่รายงาน</small></span><span class="line-cumulative-metrics"><span class="line-cumulative-metric"><i>เข้าชมฟาร์ม</i><b>${sum.year.farm.toLocaleString('th-TH')} คน</b></span><span class="line-cumulative-metric"><i>เข้าพัก</i><b>${sum.year.resort.toLocaleString('th-TH')} คน</b></span></span></div></div>`;
-  elements.lineSendNote.textContent = 'รายงานจะส่งเข้าทุกกลุ่ม LINE ที่บอทอยู่และระบบบันทึกไว้';
+  elements.lineSendNote.textContent = 'รายงานจะส่งตรงถึงเพื่อน LINE ที่เคยส่งข้อความหา OA และระบบบันทึกไว้';
   elements.lineModal.showModal();
 }
 
@@ -509,7 +509,7 @@ async function sendLineReport() {
     await loadReport();
     elements.lineModal.close();
     render();
-    showToast(`ส่งรายงานเข้า LINE เรียบร้อยแล้ว ${Number(result.group_count || 1).toLocaleString('th-TH')} กลุ่ม`, 'success');
+    showToast(`ส่งรายงานทาง LINE เรียบร้อยแล้ว ${Number(result.destination_count || 1).toLocaleString('th-TH')} คน`, 'success');
   } catch (error) {
     if (error.code === 'SESSION_EXPIRED' || error.status === 401) {
       elements.lineModal.close();
@@ -520,7 +520,7 @@ async function sendLineReport() {
     }
   } finally {
     button.disabled = false;
-    button.innerHTML = '<i data-lucide="send"></i>ส่งเข้ากลุ่ม LINE';
+    button.innerHTML = '<i data-lucide="send"></i>ส่งทาง LINE';
     window.lucide?.createIcons();
   }
 }
