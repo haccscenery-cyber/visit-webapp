@@ -278,15 +278,17 @@ function renderHistory() {
 }
 
 function shiftDate(iso, days) {
-  const date = new Date(`${iso}T00:00:00`);
-  date.setDate(date.getDate() + days);
+  const [year, month, day] = iso.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }
 
 function mondayOfWeek(iso) {
-  const date = new Date(`${iso}T00:00:00`);
-  const weekday = date.getDay() || 7;
-  date.setDate(date.getDate() - weekday + 1);
+  const [year, month, day] = iso.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const weekday = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() - weekday + 1);
   return date.toISOString().slice(0, 10);
 }
 
